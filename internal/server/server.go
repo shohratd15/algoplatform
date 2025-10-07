@@ -1,0 +1,66 @@
+package server
+
+import (
+	"algoplatform/internal/config"
+	"algoplatform/internal/controller/http/handlers"
+	"algoplatform/internal/repo/postgres"
+	"algoplatform/internal/usecase"
+	"algoplatform/pkg/db"
+	"algoplatform/pkg/jwt"
+	"algoplatform/pkg/log/zap"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+)
+
+const (
+	serviceName       = "algoplatform"
+	envFile           = ".env"
+	AppContextTimeout = 500 * time.Second
+	SecretKeyTTL      = 48 * time.Hour
+)
+
+func RunServer() {
+	cfg, err := config.Load(envFile)
+	if err != nil {
+		log.Fatalf("Error load configs: %v", err)
+	}
+
+	logger, cleanup, err := zap.NewLogger(serviceName, cfg.Env)
+	if err != nil {
+		log.Fatalf("Error initialize logger: %v", err)
+	}
+
+	tokens := jwt.New(cfg.SecretKey, SecretKeyTTL)
+
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), AppContextTimeout)
+	defer cancel()
+
+	db, err := db.NewDB(ctx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Fatalf("Error initialize db: %v", err)
+	}
+
+	userRepo := postgres.NewUserRepo(db)
+	UserService := usecase.NewUserUsecase(userRepo)
+	UserHandler := handlers.NewUserHandler(UserService, tokens, logger)
+
+	router := http.NewServeMux()
+
+	router.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "Service is running! DB connection successful.")
+	})
+
+	router.HandleFunc("POST /register", UserHandler.Register)
+	router.HandleFunc("POST /login", UserHandler.Login)
+
+	logger.Info("Starting HTTP server on :8080")
+	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
+		logger.Fatalf("Error running server: %v", err)
+	}
+}

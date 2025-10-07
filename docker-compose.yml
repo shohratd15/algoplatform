@@ -1,0 +1,64 @@
+services:
+  algoplatform_db:
+    image: postgres:15
+    container_name: algoplatform_db
+    ports:
+      # Внешний порт 5433, чтобы избежать конфликтов с локальной БД
+      - "5433:${DB_PORT}" 
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - algoplatform_pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    
+    # === ДОБАВЛЕНО: ПРОВЕРКА РАБОТОСПОСОБНОСТИ ===
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate:v4.15.2
+    container_name: algoplatform_migrate
+    restart: on-failure
+    command: >
+      -path=/migrations -database=postgres://${DB_USER}:${DB_PASSWORD}@algoplatform_db:5432/${DB_NAME}?sslmode=disable -verbose up
+    volumes:
+      - ./migrations:/migrations
+    networks:
+      - app-network
+    
+    # === ИЗМЕНЕНО: ЖДАТЬ ГОТОВНОСТИ БД ===
+    depends_on:
+      algoplatform_db:
+        condition: service_healthy # Ждет, пока healthcheck БД не пройдет
+
+  algoplatform:
+    build: .
+    container_name: algoplatform
+    env_file:
+      - .env
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    restart: on-failure
+    networks:
+      - app-network
+      
+    # === ИЗМЕНЕНО: ЖДАТЬ МИГРАЦИЙ И ГОТОВНОСТИ БД ===
+    depends_on:
+      algoplatform_db:
+        condition: service_healthy # Сначала ждет, пока БД не будет готова
+      migrate:
+        condition: service_completed_successfully # Затем ждет, пока миграции не завершатся успешно
+
+volumes:
+  algoplatform_pgdata:
+
+networks:
+  app-network:
+    driver: bridge

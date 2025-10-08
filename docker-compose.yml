@@ -62,6 +62,8 @@ services:
       - "2358:2358"
     environment:
       - DISABLE_WAIT_RESULT=true
+    networks:
+      - app-network
 
 volumes:
   algoplatform_pgdata:

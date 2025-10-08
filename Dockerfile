@@ -37,3 +37,4 @@ EXPOSE ${SERVER_PORT}
 
 # Запуск приложения через скрипт ожидания
 CMD ["./docker-entrypoint.sh"]
+

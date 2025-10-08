@@ -40,7 +40,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	err := h.uc.Register(r.Context(), req.Username, req.Email, req.Password, req.Role)
 	if err != nil {
 		h.log.Errorf(errors.ErrUserRegister, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 
 		return
 	}
@@ -75,6 +75,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(map[string]string{"token": token}); err != nil {
 		h.log.Errorf(errors.ErrEncodeJson, err)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

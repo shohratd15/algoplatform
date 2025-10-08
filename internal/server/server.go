@@ -2,6 +2,7 @@ package server
 
 import (
 	"algoplatform/internal/config"
+	httpi "algoplatform/internal/controller/http"
 	"algoplatform/internal/controller/http/handlers"
 	"algoplatform/internal/repo/postgres"
 	"algoplatform/internal/usecase"
@@ -9,7 +10,6 @@ import (
 	"algoplatform/pkg/jwt"
 	"algoplatform/pkg/log/zap"
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -46,18 +46,15 @@ func RunServer() {
 	}
 
 	userRepo := postgres.NewUserRepo(db)
+	problemRepo := postgres.NewProblemRepo(db)
+
 	UserService := usecase.NewUserUsecase(userRepo)
+	ProblemService := usecase.NewProblemUsecase(problemRepo)
+
 	UserHandler := handlers.NewUserHandler(UserService, tokens, logger)
+	ProblemHandler := handlers.NewProblemHandler(ProblemService, logger)
 
-	router := http.NewServeMux()
-
-	router.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "Service is running! DB connection successful.")
-	})
-
-	router.HandleFunc("POST /register", UserHandler.Register)
-	router.HandleFunc("POST /login", UserHandler.Login)
+	router := httpi.NewRouter(logger, UserHandler, ProblemHandler)
 
 	logger.Info("Starting HTTP server on :8080")
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {

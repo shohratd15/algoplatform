@@ -4,18 +4,31 @@ package worker
 import (
 	"algoplatform/internal/domain"
 	"algoplatform/internal/usecase"
+	"algoplatform/pkg/judge"
 	"algoplatform/pkg/log"
 	"context"
 	"time"
 )
 
 type JudgeWorker struct {
-	submissionUsecase usecase.SubmissionUsecase
-	log               log.Logger
+	subUsecase  usecase.SubmissionUsecase
+	probUsecase usecase.ProblemUsecase
+	client      *judge.Client
+	log         log.Logger
 }
 
-func NewJudgeWorker(s usecase.SubmissionUsecase, l log.Logger) *JudgeWorker {
-	return &JudgeWorker{submissionUsecase: s, log: l}
+func NewJudgeWorker(
+	sub usecase.SubmissionUsecase,
+	prob usecase.ProblemUsecase,
+	client *judge.Client,
+	log log.Logger,
+) *JudgeWorker {
+	return &JudgeWorker{
+		subUsecase:  sub,
+		probUsecase: prob,
+		client:      client,
+		log:         log,
+	}
 }
 
 func (w *JudgeWorker) Start(ctx context.Context) {
@@ -27,24 +40,55 @@ func (w *JudgeWorker) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			subs, err := w.submissionUsecase.ListPending(ctx, 5)
+			subs, err := w.subUsecase.ListPending(ctx, 5)
 			if err != nil {
 				w.log.Errorf("fetch pending", err)
 				continue
 			}
 
 			for _, s := range subs {
-				w.process(ctx, s)
+				go w.process(ctx, s)
 			}
 		}
 	}
 }
 
 func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
-	w.log.Infof("Processing submission %d", s.ID)
-	_ = w.submissionUsecase.UpdateStatus(ctx, s.ID, domain.StatusRunning)
+	_ = w.subUsecase.UpdateStatus(ctx, s.ID, domain.StatusRunning)
 
-	// Пока просто имитация выполнения
-	time.Sleep(2 * time.Second)
-	_ = w.submissionUsecase.UpdateStatus(ctx, s.ID, domain.StatusAccepted)
+	_, _, tests, err := w.probUsecase.GetBySlug(ctx, "problem_slug")
+	if err != nil {
+		w.log.Errorf("get problem tests", err)
+
+		return
+	}
+
+	allPassed := true
+	for _, t := range tests {
+		token, err := w.client.Submit(ctx, judge.SubmissionRequest{
+			LanguageID: s.LanguageID,
+			SourceCode: s.SourceCode,
+			Stdin:      t.InputData,
+			Expected:   t.ExpectedOutput,
+		})
+		if err != nil {
+			allPassed = false
+
+			break
+		}
+
+		time.Sleep(2 * time.Second)
+		res, _ := w.client.GetResult(ctx, token)
+		if res.Status.ID != 3 {
+			allPassed = false
+
+			break
+		}
+	}
+
+	if allPassed {
+		_ = w.subUsecase.UpdateStatus(ctx, s.ID, domain.StatusAccepted)
+	} else {
+		_ = w.subUsecase.UpdateStatus(ctx, s.ID, domain.StatusWrong)
+	}
 }

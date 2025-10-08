@@ -6,7 +6,9 @@ import (
 	"algoplatform/internal/controller/http/handlers"
 	"algoplatform/internal/repo/postgres"
 	"algoplatform/internal/usecase"
+	"algoplatform/internal/worker"
 	"algoplatform/pkg/db"
+	"algoplatform/pkg/judge"
 	"algoplatform/pkg/jwt"
 	"algoplatform/pkg/log/zap"
 	"context"
@@ -58,6 +60,10 @@ func RunServer() {
 	SubmissionHandler := handlers.NewSubmissionHandler(SubmissionService, logger)
 
 	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler)
+
+	judgeClient := judge.NewClient("http://localhost:2358")
+	worker := worker.NewJudgeWorker(SubmissionService, ProblemService, judgeClient, logger)
+	go worker.Start(ctx)
 
 	logger.Info("Starting HTTP server on :8080")
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {

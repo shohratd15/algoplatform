@@ -56,9 +56,17 @@ services:
       migrate:
         condition: service_completed_successfully # Затем ждет, пока миграции не завершатся успешно
 
+  judge0:
+    image: judge0/judge0:latest
+    ports:
+      - "2358:2358"
+    environment:
+      - DISABLE_WAIT_RESULT=true
+
 volumes:
   algoplatform_pgdata:
 
 networks:
   app-network:
     driver: bridge
+

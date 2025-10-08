@@ -10,4 +10,6 @@ const (
 	ErrGetBySlug          = "Error get by slug"
 	ErrParseIntID         = "Error parse int id"
 	ErrDeleteProblem      = "Error delete problem"
+	ErrSubmissionCreate   = "failed to create submission"
+	ErrSubmissionNotFound = "submission not found"
 )

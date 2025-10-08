@@ -11,6 +11,7 @@ func NewRouter(
 	logger log.Logger,
 	userHandler *handlers.UserHandler,
 	problemHandler *handlers.ProblemHandler,
+	submissionHandler *handlers.SubmissionHandler,
 ) *http.ServeMux {
 	router := http.NewServeMux()
 
@@ -30,6 +31,10 @@ func NewRouter(
 	router.HandleFunc("GET /problems", problemHandler.List)
 	router.HandleFunc("GET /problems/detail", problemHandler.GetBySlug)
 	router.HandleFunc("DELETE /problems", problemHandler.Delete)
+
+	// Submissions
+	router.HandleFunc("POST /submissions", submissionHandler.Create)
+	router.HandleFunc("GET /submissions", submissionHandler.Get)
 
 	return router
 }

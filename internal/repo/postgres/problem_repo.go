@@ -19,7 +19,6 @@ type ProblemRepo struct {
 	db *pgxpool.Pool
 }
 
-// CreateProblem implements ProblemRepository.
 func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -63,13 +62,11 @@ func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmt
 	return tx.Commit(ctx)
 }
 
-// DeleteProblem implements ProblemRepository.
 func (r *ProblemRepo) DeleteProblem(ctx context.Context, id int64) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM problems WHERE id=$1`, id)
 	return err
 }
 
-// GetAllProblems implements ProblemRepository.
 func (r *ProblemRepo) GetAllProblems(ctx context.Context) ([]domain.Problem, error) {
 	rows, err := r.db.Query(ctx, `SELECT id, slug, difficulty, create_at FROM problems ORDER BY create_at DESC`)
 	if err != nil {
@@ -91,7 +88,6 @@ func (r *ProblemRepo) GetAllProblems(ctx context.Context) ([]domain.Problem, err
 	return problems, nil
 }
 
-// GetProblemBySlug implements ProblemRepository.
 func (r *ProblemRepo) GetProblemBySlug(ctx context.Context, slug string) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error) {
 	var p domain.Problem
 	err := r.db.QueryRow(ctx,

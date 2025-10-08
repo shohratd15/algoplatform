@@ -47,14 +47,17 @@ func RunServer() {
 
 	userRepo := postgres.NewUserRepo(db)
 	problemRepo := postgres.NewProblemRepo(db)
+	submissionRepo := postgres.NewSubmissionRepo(db)
 
 	UserService := usecase.NewUserUsecase(userRepo)
 	ProblemService := usecase.NewProblemUsecase(problemRepo)
+	SubmissionService := usecase.NewSubmissionUsecase(submissionRepo)
 
 	UserHandler := handlers.NewUserHandler(UserService, tokens, logger)
 	ProblemHandler := handlers.NewProblemHandler(ProblemService, logger)
+	SubmissionHandler := handlers.NewSubmissionHandler(SubmissionService, logger)
 
-	router := httpi.NewRouter(logger, UserHandler, ProblemHandler)
+	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler)
 
 	logger.Info("Starting HTTP server on :8080")
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {

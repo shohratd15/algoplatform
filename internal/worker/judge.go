@@ -1,40 +1,50 @@
 // internal/worker/judge.go
 package worker
 
-// import (
-// 	"context"
-// 	// "os/exec"
-// 	// "bytes"
-// 	// "time"
-// 	"algoplatform/internal/domain"
-// )
+import (
+	"algoplatform/internal/domain"
+	"algoplatform/internal/usecase"
+	"algoplatform/pkg/log"
+	"context"
+	"time"
+)
 
-// type InMemoryJudge struct {
-// 	queue chan int64
-// 	repo  domain.SubmissionRepo
-// 	// problemRepo, testRepo, logger и т.д.
-// }
+type JudgeWorker struct {
+	submissionUsecase usecase.SubmissionUsecase
+	log               log.Logger
+}
 
-// func NewInMemoryJudge(repo domain.SubmissionRepo) *InMemoryJudge {
-// 	j := &InMemoryJudge{queue: make(chan int64, 1024), repo: repo}
-// 	go j.loop()
-// 	return j
-// }
+func NewJudgeWorker(s usecase.SubmissionUsecase, l log.Logger) *JudgeWorker {
+	return &JudgeWorker{submissionUsecase: s, log: l}
+}
 
-// func (j *InMemoryJudge) Enqueue(ctx context.Context, id int64) error {
-// 	select {
-// 	case j.queue <- id:
-// 		return nil
-// 	default:
-// 		return context.DeadlineExceeded
-// 	}
-// }
+func (w *JudgeWorker) Start(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-// func (j *InMemoryJudge) loop() {
-// 	for id := range j.queue {
-// 		_ = j.repo.UpdateStatus(context.Background(), id, "running")
-// 		// TODO: получить исходник/тесты, собрать двоичный файл, прогнать тесты с таймаутом.
-// 		// MVP: выставить "accepted" как заглушку.
-// 		_ = j.repo.UpdateStatus(context.Background(), id, "accepted")
-// 	}
-// }
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			subs, err := w.submissionUsecase.ListPending(ctx, 5)
+			if err != nil {
+				w.log.Errorf("fetch pending", err)
+				continue
+			}
+
+			for _, s := range subs {
+				w.process(ctx, s)
+			}
+		}
+	}
+}
+
+func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
+	w.log.Infof("Processing submission %d", s.ID)
+	_ = w.submissionUsecase.UpdateStatus(ctx, s.ID, domain.StatusRunning)
+
+	// Пока просто имитация выполнения
+	time.Sleep(2 * time.Second)
+	_ = w.submissionUsecase.UpdateStatus(ctx, s.ID, domain.StatusAccepted)
+}

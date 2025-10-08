@@ -6,15 +6,14 @@
 It allows students to solve problems, submit code, and receive instant feedback with detailed results.
 
 ## 🚀 Features
-
-    - User authentication (registration & login)
-    - Problem management (create, list, update, delete)
-    - Code submission and judging system
-    - Asynchronous worker for solution evaluation
-    - PostgreSQL persistence layer
-    - Configurable environment variables
-    - Dockerized development setup
-    - Clean architecture with domain-driven design principles
+- User authentication (registration & login)
+- Problem management (create, list, update, delete)
+- Code submission and judging system
+- Asynchronous worker for solution evaluation
+- PostgreSQL persistence layer
+- Configurable environment variables
+- Dockerized development setup
+- Clean architecture with domain-driven design principles
 
 ## 🧩 Tech Stack
 

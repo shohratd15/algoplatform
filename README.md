@@ -120,7 +120,7 @@ go run cmd/main.go
 
 ## 🧪 API Documentation
 
-Full API documentation is available in [API.md](https://github.com/shohratd15/algoplatform/API.md), including:
+Full API documentation is available in [API.md](API.md), including:
 
 - Authentication endpoints
 - Problem management

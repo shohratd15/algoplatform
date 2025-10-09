@@ -6,6 +6,7 @@
 It allows students to solve problems, submit code, and receive instant feedback with detailed results.
 
 ## 🚀 Features
+
 - User authentication (registration & login)
 - Problem management (create, list, update, delete)
 - Code submission and judging system

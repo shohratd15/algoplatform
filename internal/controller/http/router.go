@@ -29,7 +29,7 @@ func NewRouter(
 	// Problems
 	router.HandleFunc("POST /problems", problemHandler.Create)
 	router.HandleFunc("GET /problems", problemHandler.List)
-	router.HandleFunc("GET /problems/detail", problemHandler.GetBySlug)
+	router.HandleFunc("GET /problems/detail", problemHandler.GetById)
 	router.HandleFunc("DELETE /problems", problemHandler.Delete)
 
 	// Submissions

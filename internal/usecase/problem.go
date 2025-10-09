@@ -9,7 +9,7 @@ import (
 type ProblemUsecase interface {
 	Create(ctx context.Context, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error
 	List(ctx context.Context) ([]domain.Problem, error)
-	GetBySlug(ctx context.Context, slug string) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error)
+	GetById(ctx context.Context, id int64) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error)
 	Delete(ctx context.Context, id int64) error
 }
 
@@ -25,8 +25,8 @@ func (u *problemUsecase) Delete(ctx context.Context, id int64) error {
 	return u.repo.DeleteProblem(ctx, id)
 }
 
-func (u *problemUsecase) GetBySlug(ctx context.Context, slug string) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error) {
-	return u.repo.GetProblemBySlug(ctx, slug)
+func (u *problemUsecase) GetById(ctx context.Context, id int64) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error) {
+	return u.repo.GetProblemById(ctx, id)
 }
 
 func (u *problemUsecase) List(ctx context.Context) ([]domain.Problem, error) {

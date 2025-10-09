@@ -83,10 +83,15 @@ func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *ProblemHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
-	slug := r.URL.Query().Get("slug")
+func (h *ProblemHandler) GetById(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
 
-	p, stmts, tests, err := h.usecase.GetBySlug(r.Context(), slug)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		h.log.Errorf(errors.ErrParseIntID, err)
+	}
+
+	p, stmts, tests, err := h.usecase.GetById(r.Context(), id)
 	if err != nil {
 		h.log.Errorf(errors.ErrGetBySlug, err)
 		http.Error(w, err.Error(), http.StatusNotFound)

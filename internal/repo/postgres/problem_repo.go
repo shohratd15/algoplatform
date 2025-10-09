@@ -11,7 +11,7 @@ import (
 type ProblemRepository interface {
 	CreateProblem(ctx context.Context, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error
 	GetAllProblems(ctx context.Context) ([]domain.Problem, error)
-	GetProblemBySlug(ctx context.Context, slug string) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error)
+	GetProblemById(ctx context.Context, id int64) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error)
 	DeleteProblem(ctx context.Context, id int64) error
 }
 
@@ -88,10 +88,10 @@ func (r *ProblemRepo) GetAllProblems(ctx context.Context) ([]domain.Problem, err
 	return problems, nil
 }
 
-func (r *ProblemRepo) GetProblemBySlug(ctx context.Context, slug string) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error) {
+func (r *ProblemRepo) GetProblemById(ctx context.Context, id int64) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error) {
 	var p domain.Problem
 	err := r.db.QueryRow(ctx,
-		`SELECT id, slug, difficulty, created_at FROM problems WHERE slug=$1`, slug).
+		`SELECT id, slug, difficulty, created_at FROM problems WHERE id=$1`, id).
 		Scan(&p.ID, &p.Slug, &p.Difficulty, &p.CreatedAt)
 	if err != nil {
 		return nil, nil, nil, err

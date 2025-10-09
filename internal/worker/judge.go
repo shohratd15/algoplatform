@@ -56,7 +56,7 @@ func (w *JudgeWorker) Start(ctx context.Context) {
 func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
 	_ = w.subUsecase.UpdateStatus(ctx, s.ID, domain.StatusRunning)
 
-	_, _, tests, err := w.probUsecase.GetBySlug(ctx, "problem_slug")
+	_, _, tests, err := w.probUsecase.GetById(ctx, s.ProblemID)
 	if err != nil {
 		w.log.Errorf("get problem tests", err)
 

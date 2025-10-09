@@ -1,313 +1,249 @@
-# AlgoPlatform API Documentation
+# API Documentation
 
-## 📘 Overview
-
-This document describes the REST API endpoints for **AlgoPlatform** — an educational platform for algorithm practice and automatic solution judging.
-
----
-
-## 🔧 General Information
-
-**Base URL:**
+## Base URL
 
 ```
-http://localhost:8080/api/v1
+http://localhost:8080
 ```
 
-**Content Type:**
+## 1️⃣ Health Check
 
+| Endpoint | Method | Auth | Description                        |
+| -------- | ------ | ---- | ---------------------------------- |
+| `/ping`  | GET    | No   | Проверка работоспособности сервиса |
+
+**Response (200 OK):**
+
+```json
+"Service is running! DB connection successful."
 ```
-application/json
-```
 
-**Authentication:**  
-All protected routes require a JWT token in the header:
+## 2️⃣ Users
 
-```
-Authorization: Bearer <your_token>
-```
+### 2.1 Register
 
----
+| Endpoint    | Method | Auth | Description              |
+| ----------- | ------ | ---- | ------------------------ |
+| `/register` | POST   | No   | Регистрация пользователя |
 
-## 🔐 Authentication
-
-### 1. Register a New User
-
-**POST** `/auth/register`
-
-#### Request Body
+**Body:**
 
 ```json
 {
-  "username": "john_doe",
-  "email": "john@example.com",
-  "password": "securepassword"
+  "username": "string",
+  "email": "string",
+  "password": "string",
+  "role": "string"
 }
 ```
 
-#### Response (201)
+**Response (201 Created):** Пустое тело
+
+**Errors:**
+
+- 400 Bad Request — неверные данные
+- 500 Internal Server Error — ошибка сервера
+
+### 2.2 Login
+
+| Endpoint | Method | Auth | Description        |
+| -------- | ------ | ---- | ------------------ |
+| `/login` | POST   | No   | Логин пользователя |
+
+**Body:**
 
 ```json
 {
-  "id": 1,
-  "username": "john_doe",
-  "email": "john@example.com",
-  "created_at": "2025-10-08T12:00:00Z"
+  "email": "string",
+  "password": "string"
 }
 ```
 
-#### Error (400)
+**Response (200 OK):**
 
 ```json
 {
-  "error": "email already exists"
+  "token": "jwt_token"
 }
 ```
 
----
+**Errors:**
 
-### 2. Login
+- 401 Unauthorized — неверный логин/пароль
+- 500 Internal Server Error — ошибка генерации токена
 
-**POST** `/auth/login`
+## 3️⃣ Problems
 
-#### Request Body
+> Protected endpoints: require JWT token (RequireUser), POST & DELETE requires RequireAdmin
+
+### 3.1 Create Problem
+
+| Endpoint    | Method | Auth  | Description           |
+| ----------- | ------ | ----- | --------------------- |
+| `/problems` | POST   | Admin | Создание новой задачи |
+
+**Body:**
 
 ```json
 {
-  "email": "john@example.com",
-  "password": "securepassword"
+  "slug": "two-sum",
+  "difficulty": "easy",
+  "statements": [
+    {
+      "language": "python",
+      "title": "Two Sum",
+      "statement": "Find two numbers..."
+    }
+  ],
+  "tests": [
+    {
+      "id": 1,
+      "input_data": "1 2 3",
+      "expected_output": "3",
+      "is_sample": true
+    }
+  ]
 }
 ```
 
-#### Response (200)
+**Response (201 Created):** Пустое тело
 
-```json
-{
-  "token": "<jwt_token>",
-  "expires_in": 3600
-}
-```
+### 3.2 List Problems
 
-#### Error (401)
+| Endpoint    | Method | Auth | Description            |
+| ----------- | ------ | ---- | ---------------------- |
+| `/problems` | GET    | Yes  | Получение списка задач |
 
-```json
-{
-  "error": "invalid email or password"
-}
-```
-
----
-
-## 📘 Problems
-
-### 1. Get All Problems
-
-**GET** `/problems`
-
-#### Response (200)
+**Response (200 OK):**
 
 ```json
 [
   {
     "id": 1,
-    "title": "Two Sum",
-    "difficulty": "Easy",
-    "description": "Find two numbers that sum up to a target.",
-    "created_at": "2025-10-08T12:00:00Z"
+    "slug": "two-sum",
+    "difficulty": "easy",
+    "created_at": "2025-10-09T00:00:00Z"
   }
 ]
 ```
 
----
+### 3.3 Get Problem Details
 
-### 2. Get Problem by ID
+| Endpoint           | Method | Auth | Description                    |
+| ------------------ | ------ | ---- | ------------------------------ |
+| `/problems/detail` | GET    | Yes  | Получение деталей задачи по id |
 
-**GET** `/problems/{id}`
+**Query params:** id — идентификатор задачи
 
-#### Example
-
-```
-GET /problems/1
-```
-
-#### Response (200)
+**Response (200 OK):**
 
 ```json
 {
-  "id": 1,
-  "title": "Two Sum",
-  "difficulty": "Easy",
-  "description": "Find two numbers that sum up to a target.",
-  "input_format": "n, target, array",
-  "output_format": "array of indices"
-}
-```
-
-#### Error (404)
-
-```json
-{
-  "error": "problem not found"
-}
-```
-
----
-
-### 3. Create Problem _(Admin only)_
-
-**POST** `/problems`
-
-#### Request Body
-
-```json
-{
-  "title": "Fibonacci Sequence",
-  "difficulty": "Medium",
-  "description": "Find n-th Fibonacci number.",
-  "input_format": "integer n",
-  "output_format": "integer"
-}
-```
-
-#### Response (201)
-
-```json
-{
-  "id": 5,
-  "title": "Fibonacci Sequence",
-  "difficulty": "Medium"
-}
-```
-
----
-
-### 4. Update Problem _(Admin only)_
-
-**PUT** `/problems/{id}`
-
-#### Request Body
-
-```json
-{
-  "difficulty": "Hard",
-  "description": "Find n-th Fibonacci number efficiently using dynamic programming."
-}
-```
-
-#### Response (200)
-
-```json
-{
-  "message": "problem updated successfully"
-}
-```
-
----
-
-### 5. Delete Problem _(Admin only)_
-
-**DELETE** `/problems/{id}`
-
-#### Response (200)
-
-```json
-{
-  "message": "problem deleted"
-}
-```
-
----
-
-## 🧩 Submissions
-
-### 1. Submit Solution
-
-**POST** `/submissions`
-
-#### Request Body
-
-```json
-{
-  "problem_id": 1,
-  "language": "python",
-  "code": "def solve(): print('Hello World')"
-}
-```
-
-#### Response (202)
-
-```json
-{
-  "submission_id": 101,
-  "status": "pending"
-}
-```
-
----
-
-### 2. Get Submission Status
-
-**GET** `/submissions/{id}`
-
-#### Example
-
-```
-GET /submissions/101
-```
-
-#### Response (200)
-
-```json
-{
-  "id": 101,
-  "problem_id": 1,
-  "status": "accepted",
-  "runtime": 0.123,
-  "memory": 2048,
-  "created_at": "2025-10-08T12:30:00Z"
-}
-```
-
----
-
-### 3. Get All Submissions for User
-
-**GET** `/submissions`
-
-#### Response (200)
-
-```json
-[
-  {
-    "id": 101,
-    "problem_id": 1,
-    "status": "accepted",
-    "runtime": 0.123
+  "problem": {
+    "id": 1,
+    "slug": "two-sum",
+    "difficulty": "easy"
   },
-  {
-    "id": 102,
-    "problem_id": 2,
-    "status": "wrong answer"
-  }
-]
+  "statements": [
+    {
+      "language": "eng",
+      "title": "Two Sum",
+      "statement": "Find two numbers..."
+    }
+  ],
+  "tests": [
+    {
+      "id": 1,
+      "input_data": "1 2 3",
+      "expected_output": "3",
+      "is_sample": true
+    }
+  ]
+}
 ```
 
----
+### 3.4 Delete Problem
 
-## ⚠️ Error Responses
+| Endpoint    | Method | Auth  | Description           |
+| ----------- | ------ | ----- | --------------------- |
+| `/problems` | DELETE | Admin | Удаление задачи по id |
 
-| HTTP Code | Description           | Example                                   |
-| --------- | --------------------- | ----------------------------------------- |
-| 400       | Bad Request           | `{ "error": "invalid input" }`            |
-| 401       | Unauthorized          | `{ "error": "missing or invalid token" }` |
-| 403       | Forbidden             | `{ "error": "permission denied" }`        |
-| 404       | Not Found             | `{ "error": "resource not found" }`       |
-| 500       | Internal Server Error | `{ "error": "internal server error" }`    |
+**Query params:** id — идентификатор задачи
 
----
+**Response (204 No Content)**
 
-## 🧠 Notes
+## 4️⃣ Submissions
 
-- All timestamps are returned in **UTC ISO8601** format.
-- Submissions are processed asynchronously by the **Judge Worker** service.
-- Problem test cases are stored in the database (`problems_tests` table).
+> Protected endpoints: require JWT token (RequireUser)
+
+### 4.1 Create Submission
+
+| Endpoint       | Method | Auth | Description             |
+| -------------- | ------ | ---- | ----------------------- |
+| `/submissions` | POST   | Yes  | Создание новой отправки |
+
+**Body:**
+
+```json
+{
+  "user_id": 1,
+  "problem_id": 1,
+  "language_id": 1,
+  "source_code": "print(sum([1,2,3]))"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+  "id": 123
+}
+```
+
+### 4.2 Get Submission
+
+| Endpoint       | Method | Auth | Description              |
+| -------------- | ------ | ---- | ------------------------ |
+| `/submissions` | GET    | Yes  | Получение отправки по id |
+
+**Query params:** id — идентификатор отправки
+
+**Response (200 OK):**
+
+```json
+{
+  "id": 123,
+  "user_id": 1,
+  "problem_id": 1,
+  "language_id": 1,
+  "source_code": "print(sum([1,2,3]))",
+  "status": "queued",
+  "created_at": "2025-10-09T00:00:00Z",
+  "updated_at": "2025-10-09T00:00:00Z"
+}
+```
+
+## 5️⃣ Errors
+
+| Status Code | Description                                |
+| ----------- | ------------------------------------------ |
+| 400         | Bad Request — неверные данные              |
+| 401         | Unauthorized — не авторизован              |
+| 403         | Forbidden — доступ запрещён (только Admin) |
+| 404         | Not Found — объект не найден               |
+| 500         | Internal Server Error — ошибка сервера     |
+
+## 6️⃣ Summary Table of Endpoints
+
+| Endpoint           | Method | Auth  | Description          |
+| ------------------ | ------ | ----- | -------------------- |
+| `/ping`            | GET    | No    | Health check         |
+| `/register`        | POST   | No    | Register user        |
+| `/login`           | POST   | No    | Login user           |
+| `/problems`        | POST   | Admin | Create problem       |
+| `/problems`        | GET    | Yes   | List problems        |
+| `/problems/detail` | GET    | Yes   | Get problem details  |
+| `/problems`        | DELETE | Admin | Delete problem       |
+| `/submissions`     | POST   | Yes   | Create submission    |
+| `/submissions`     | GET    | Yes   | Get submission by id |

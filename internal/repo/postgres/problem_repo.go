@@ -68,7 +68,7 @@ func (r *ProblemRepo) DeleteProblem(ctx context.Context, id int64) error {
 }
 
 func (r *ProblemRepo) GetAllProblems(ctx context.Context) ([]domain.Problem, error) {
-	rows, err := r.db.Query(ctx, `SELECT id, slug, difficulty, created_at FROM problems ORDER BY create_at DESC`)
+	rows, err := r.db.Query(ctx, `SELECT id, slug, difficulty, created_at FROM problems ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}

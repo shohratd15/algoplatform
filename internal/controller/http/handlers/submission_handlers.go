@@ -72,6 +72,7 @@ func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sub, err := h.usecase.Get(r.Context(), parseID(idStr))
 	if err != nil {
+		h.log.Errorf(errors.ErrSubmissionNotFound, err)
 		http.Error(w, errors.ErrSubmissionNotFound, http.StatusNotFound)
 		return
 	}

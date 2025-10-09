@@ -6,5 +6,5 @@ CREATE TABLE submissions (
     source_code TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('queued','running','accepted','wrong_answer','runtime_error','error','time_limit','memory_limit')),
     created_at  TIMESTAMP DEFAULT now(),
-    updated_at  TIMESTAMP 
+    updated_at  TIMESTAMP DEFAULT now()
 );

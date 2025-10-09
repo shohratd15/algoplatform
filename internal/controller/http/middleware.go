@@ -3,18 +3,18 @@ package httpi
 
 import (
 	"algoplatform/internal/domain"
+	"algoplatform/pkg/log"
 	"context"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-func Logging(next http.Handler) http.Handler {
+func Logging(next http.Handler, log log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
+		log.Infof("%s %s %v", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
@@ -33,11 +33,13 @@ func (m *AuthMiddleware) JWT(next http.Handler) http.Handler {
 			http.Error(w, "missing bearer token", http.StatusUnauthorized)
 			return
 		}
+
 		c, err := m.Tokens.Parse(strings.TrimPrefix(h, "Bearer "))
 		if err != nil {
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}
+
 		ctx := context.WithValue(r.Context(), claimsKey, c)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

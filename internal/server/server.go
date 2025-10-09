@@ -59,7 +59,7 @@ func RunServer() {
 	ProblemHandler := handlers.NewProblemHandler(ProblemService, logger)
 	SubmissionHandler := handlers.NewSubmissionHandler(SubmissionService, logger)
 
-	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler)
+	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler, tokens)
 
 	judgeClient := judge.NewClient("http://localhost:2358")
 	worker := worker.NewJudgeWorker(SubmissionService, ProblemService, judgeClient, logger)

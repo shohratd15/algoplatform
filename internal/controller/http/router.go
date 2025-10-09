@@ -2,6 +2,7 @@ package httpi
 
 import (
 	"algoplatform/internal/controller/http/handlers"
+	"algoplatform/internal/domain"
 	"algoplatform/pkg/log"
 	"fmt"
 	"net/http"
@@ -12,8 +13,11 @@ func NewRouter(
 	userHandler *handlers.UserHandler,
 	problemHandler *handlers.ProblemHandler,
 	submissionHandler *handlers.SubmissionHandler,
+	tokenService domain.TokenService,
 ) *http.ServeMux {
 	router := http.NewServeMux()
+
+	auth := &AuthMiddleware{Tokens: tokenService}
 
 	router.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -26,15 +30,25 @@ func NewRouter(
 	router.HandleFunc("POST /register", userHandler.Register)
 	router.HandleFunc("POST /login", userHandler.Login)
 
+	protected := http.NewServeMux()
 	// Problems
-	router.HandleFunc("POST /problems", problemHandler.Create)
-	router.HandleFunc("GET /problems", problemHandler.List)
-	router.HandleFunc("GET /problems/detail", problemHandler.GetById)
-	router.HandleFunc("DELETE /problems", problemHandler.Delete)
+	protected.HandleFunc("POST /problems", problemHandler.Create)
+	protected.HandleFunc("GET /problems", problemHandler.List)
+	protected.HandleFunc("GET /problems/detail", problemHandler.GetById)
+	protected.HandleFunc("DELETE /problems", problemHandler.Delete)
 
 	// Submissions
-	router.HandleFunc("POST /submissions", submissionHandler.Create)
-	router.HandleFunc("GET /submissions", submissionHandler.Get)
+	protected.HandleFunc("POST /submissions", submissionHandler.Create)
+	protected.HandleFunc("GET /submissions", submissionHandler.Get)
 
-	return router
+	protectedWithMiddleware := Logging(
+		auth.JWT(RequireUser(protected)),
+		logger,
+	)
+
+	mainRouter := http.NewServeMux()
+	mainRouter.Handle("/", Logging(router, logger))
+	mainRouter.Handle("/api/", http.StripPrefix("/api", protectedWithMiddleware))
+
+	return mainRouter
 }

@@ -38,7 +38,7 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 	       FROM users WHERE email=$1`
 
 	var u domain.User
-	if err := r.DB.QueryRow(ctx, q, email).Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.PasswordHash, &u.CreateAt); err != nil {
+	if err := r.DB.QueryRow(ctx, q, email).Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.PasswordHash, &u.CreatedAt); err != nil {
 		return nil, err
 	}
 

@@ -3,8 +3,7 @@ services:
     image: postgres:15
     container_name: algoplatform_db
     ports:
-      # Внешний порт 5433, чтобы избежать конфликтов с локальной БД
-      - "5433:${DB_PORT}" 
+      - "5433:${DB_PORT}"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -14,29 +13,26 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
-    
-    # === ДОБАВЛЕНО: ПРОВЕРКА РАБОТОСПОСОБНОСТИ ===
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   migrate:
     image: migrate/migrate:v4.15.2
     container_name: algoplatform_migrate
     restart: on-failure
     command: >
-      -path=/migrations -database=postgres://${DB_USER}:${DB_PASSWORD}@algoplatform_db:5432/${DB_NAME}?sslmode=disable -verbose up
+      -path=/migrations -database=postgres://${DB_USER}:${DB_PASSWORD}@algoplatform_db:5432/${DB_NAME}?sslmode=disable up
     volumes:
       - ./migrations:/migrations
-    networks:
-      - app-network
-    
-    # === ИЗМЕНЕНО: ЖДАТЬ ГОТОВНОСТИ БД ===
     depends_on:
       algoplatform_db:
-        condition: service_healthy # Ждет, пока healthcheck БД не пройдет
+        condition: service_healthy
+    networks:
+      - app-network
 
   algoplatform:
     build: .
@@ -46,29 +42,80 @@ services:
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     restart: on-failure
-    networks:
-      - app-network
-      
-    # === ИЗМЕНЕНО: ЖДАТЬ МИГРАЦИЙ И ГОТОВНОСТИ БД ===
     depends_on:
       algoplatform_db:
-        condition: service_healthy # Сначала ждет, пока БД не будет готова
+        condition: service_healthy
       migrate:
-        condition: service_completed_successfully # Затем ждет, пока миграции не завершатся успешно
+        condition: service_completed_successfully
+      judge0:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  judge0_redis:
+    image: redis:7
+    container_name: judge0_redis
+    restart: always
+    networks:
+      - app-network
+
+  judge0_db:
+    image: postgres:13
+    container_name: judge0_db
+    environment:
+      POSTGRES_USER: ${JUDGE0_DB_USER:-judge0}
+      POSTGRES_PASSWORD: ${JUDGE0_DB_PASSWORD:-judge0pass}
+      POSTGRES_DB: ${JUDGE0_DB_NAME:-judge0db}
+    volumes:
+      - judge0_pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   judge0:
     image: judge0/judge0:latest
-    ports:
-      - "2358:2358"
+    container_name: judge0
+    restart: always
+    privileged: true
     environment:
-      - DISABLE_WAIT_RESULT=true
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=d41d8cd98f00b204e9800998ecf8427e
+      - DISABLE_WAIT_RESULT=false
+      - PORT=2358
+      - POSTGRES_HOST=judge0_db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${JUDGE0_DB_USER:-judge0}
+      - POSTGRES_PASSWORD=${JUDGE0_DB_PASSWORD:-judge0pass}
+      - POSTGRES_DB=${JUDGE0_DB_NAME:-judge0db}
+      - REDIS_HOST=judge0_redis
+      - REDIS_PORT=6379
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - app-network
+    ports:
+      - "2358:2358"
+    depends_on:
+      judge0_db:
+        condition: service_healthy
+      judge0_redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:2358/system_info || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
 volumes:
   algoplatform_pgdata:
+  judge0_pgdata:
 
 networks:
   app-network:
     driver: bridge
-

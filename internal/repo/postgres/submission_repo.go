@@ -26,7 +26,7 @@ func NewSubmissionRepo(db *pgxpool.Pool) *SubmissionRepo {
 func (r *SubmissionRepo) Create(ctx context.Context, s *domain.Submission) (int64, error) {
 	q := `
 		INSERT INTO submissions (user_id, problem_id, language_id, source_code, status, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
 		RETURNING id
 	`
 	var id int64

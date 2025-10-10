@@ -6,6 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+)
+
+// Константы Judge0 для более читаемого кода
+const (
+	StatusInQueue     = 1
+	StatusProcessing  = 2
+	StatusAccepted    = 3
+	StatusWrongAnswer = 4
+	// Другие статусы, которые стоит обработать:
+	// StatusTimeLimitExceeded = 5
+	// StatusCompileError = 6
+	// StatusInternalError = 13 (используется как пример)
 )
 
 type Client struct {
@@ -38,21 +51,36 @@ type ResultResponse struct {
 }
 
 func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, error) {
-	body, _ := json.Marshal(req)
-	httpReq, _ := http.NewRequestWithContext(ctx, "POST",
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST",
 		c.BaseURL+"/submissions?base64_encoded=false&wait=false", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create http request: %w", err)
+	}
+
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	// Используем http.Client, который учитывает контекст
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return "", err
 	}
 
 	defer resp.Body.Close() // nolint: errcheck
 
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("judge0 submit returned non-20x status: %d", resp.StatusCode)
+	}
+
 	var result SubmissionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+		return "", fmt.Errorf("decode submission response: %w", err)
 	}
 
 	return result.Token, nil
@@ -61,16 +89,23 @@ func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, err
 func (c *Client) GetResult(ctx context.Context, token string) (*ResultResponse, error) {
 	url := fmt.Sprintf("%s/submissions/%s?base64_encoded=false", c.BaseURL, token)
 
-	resp, err := http.Get(url)
+	// Используем http.Client, который учитывает контекст
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("judge0 get result request failed: %w", err)
 	}
 
 	defer resp.Body.Close() // nolint: errcheck
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("judge0 get result returned non-200 status: %d", resp.StatusCode)
+	}
+
 	var res ResultResponse
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode result response: %w", err)
 	}
 
 	return &res, nil

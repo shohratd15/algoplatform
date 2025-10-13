@@ -68,7 +68,7 @@ func RunServer() {
 	worker := worker.NewJudgeWorker(SubmissionService, ProblemService, judgeClient, logger)
 	go worker.Start(ctx)
 
-	logger.Info("Starting HTTP server on :8080")
+	logger.Infof("Starting HTTP server on :%s", cfg.ServerPort)
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
 		logger.Fatalf("Error running server: %v", err)
 	}

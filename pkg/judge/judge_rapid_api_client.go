@@ -22,11 +22,17 @@ const (
 )
 
 type Client struct {
-	BaseURL string
+	Host   string
+	APIKey string
+	Client *http.Client
 }
 
-func NewClient(baseURL string) *Client {
-	return &Client{BaseURL: baseURL}
+func NewClient(host, apikey string) *Client {
+	return &Client{
+		Host:   host,
+		APIKey: apikey,
+		Client: &http.Client{Timeout: 10 * time.Second},
+	}
 }
 
 type SubmissionRequest struct {
@@ -45,9 +51,12 @@ type ResultResponse struct {
 		ID   int    `json:"id"`
 		Name string `json:"description"`
 	} `json:"status"`
-	Stdout  string `json:"stdout"`
-	Stderr  string `json:"stderr"`
-	Message string `json:"message"`
+	CompileOutput string `json:"compile_output"`
+	Stdout        string `json:"stdout"`
+	Stderr        string `json:"stderr"`
+	Time          string `json:"time"`
+	Memory        int    `json:"memory"`
+	Message       string `json:"message"`
 }
 
 func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, error) {
@@ -56,18 +65,17 @@ func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, err
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST",
-		c.BaseURL+"/submissions?base64_encoded=false&wait=false", bytes.NewReader(body))
+	url := fmt.Sprintf("https://%s/submissions?base64_encoded=false&wait=false", c.Host)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("create http request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Add("x-rapidapi-key", c.APIKey)
+	httpReq.Header.Add("x-rapidapi-host", c.Host)
 
-	// Используем http.Client, который учитывает контекст
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	resp, err := client.Do(httpReq)
+	resp, err := c.Client.Do(httpReq)
 	if err != nil {
 		return "", err
 	}
@@ -87,12 +95,17 @@ func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, err
 }
 
 func (c *Client) GetResult(ctx context.Context, token string) (*ResultResponse, error) {
-	url := fmt.Sprintf("%s/submissions/%s?base64_encoded=false", c.BaseURL, token)
+	url := fmt.Sprintf("https://%s/submissions/%s?base64_encoded=false", c.Host, token)
 
-	// Используем http.Client, который учитывает контекст
-	client := &http.Client{Timeout: 10 * time.Second}
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
 
-	resp, err := client.Get(url)
+	httpReq.Header.Add("x-rapidapi-key", c.APIKey)
+	httpReq.Header.Add("x-rapidapi-host", c.Host)
+
+	resp, err := c.Client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("judge0 get result request failed: %w", err)
 	}

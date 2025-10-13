@@ -9,10 +9,12 @@ import (
 )
 
 type Config struct {
-	Env         string
-	ServerPort  string
-	DatabaseURL string
-	SecretKey   string
+	Env                string
+	ServerPort         string
+	DatabaseURL        string
+	SecretKey          string
+	Judge0RapidAPIHost string
+	Judge0RapidAPIKey  string
 }
 
 // Load загружает конфигурацию из .env и переменных окружения
@@ -41,19 +43,6 @@ func Load(envFile string) (*Config, error) {
 	dbname := getEnv("DB_NAME", "algoplatform_db")
 	sslmode := getEnv("DB_SSLMODE", "disable")
 
-	// Проверка обязательных
-	required := map[string]string{
-		"DB_HOST":     host,
-		"DB_USER":     user,
-		"DB_PASSWORD": password,
-		"DB_NAME":     dbname,
-	}
-	for key, val := range required {
-		if val == "" {
-			return nil, fmt.Errorf("missing required environment variable: %s", key)
-		}
-	}
-
 	cfg.DatabaseURL = fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		user, password, host, portDB, dbname, sslmode,
@@ -62,10 +51,13 @@ func Load(envFile string) (*Config, error) {
 	//Secret Key
 	cfg.SecretKey = getEnv("SECRET_KEY", "my_secret_key_algo")
 
+	//JUDGE0_RAPID_API
+	cfg.Judge0RapidAPIHost = getEnv("JUDGE0_RAPID_API_HOST", "judge0-ce.p.rapidapi.com")
+	cfg.Judge0RapidAPIKey = getEnv("JUDGE0_RAPID_API_KEY", "my_key")
+
 	return cfg, nil
 }
 
-// getEnv возвращает переменную окружения или значение по умолчанию
 func getEnv(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val

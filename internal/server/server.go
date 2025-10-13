@@ -10,18 +10,21 @@ import (
 	"algoplatform/pkg/db"
 	"algoplatform/pkg/judge"
 	"algoplatform/pkg/jwt"
+	logger "algoplatform/pkg/log"
 	"algoplatform/pkg/log/zap"
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
 const (
-	serviceName       = "algoplatform"
-	envFile           = ".env"
-	AppContextTimeout = 500 * time.Second
-	SecretKeyTTL      = 48 * time.Hour
+	serviceName  = "algoplatform"
+	envFile      = ".env"
+	SecretKeyTTL = 48 * time.Hour
 )
 
 func RunServer() {
@@ -39,7 +42,7 @@ func RunServer() {
 
 	defer cleanup()
 
-	ctx, cancel := context.WithTimeout(context.Background(), AppContextTimeout)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	db, err := db.NewDB(ctx, cfg.DatabaseURL)
@@ -61,7 +64,7 @@ func RunServer() {
 
 	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler, tokens)
 
-	judgeClient := judge.NewClient("http://judge0:2358")
+	judgeClient := judge.NewClient(cfg.Judge0RapidAPIHost, cfg.Judge0RapidAPIKey)
 	worker := worker.NewJudgeWorker(SubmissionService, ProblemService, judgeClient, logger)
 	go worker.Start(ctx)
 
@@ -69,4 +72,15 @@ func RunServer() {
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
 		logger.Fatalf("Error running server: %v", err)
 	}
+
+	go gracefulShutdown(cancel, logger)
+}
+
+func gracefulShutdown(cancel context.CancelFunc, logger logger.Logger) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	sig := <-sigChan
+	logger.Infof("Received signal: %s. Shutting down gracefully...", sig)
+	cancel()
 }

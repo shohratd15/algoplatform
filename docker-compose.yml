@@ -1,4 +1,7 @@
 services:
+  ##############################################################################
+  # ALGOPLATFORM
+  ##############################################################################
   algoplatform_db:
     image: postgres:15
     container_name: algoplatform_db
@@ -52,69 +55,11 @@ services:
     networks:
       - app-network
 
-  judge0_redis:
-    image: redis:7
-    container_name: judge0_redis
-    restart: always
-    networks:
-      - app-network
-
-  judge0_db:
-    image: postgres:13
-    container_name: judge0_db
-    environment:
-      POSTGRES_USER: ${JUDGE0_DB_USER:-judge0}
-      POSTGRES_PASSWORD: ${JUDGE0_DB_PASSWORD:-judge0pass}
-      POSTGRES_DB: ${JUDGE0_DB_NAME:-judge0db}
-    volumes:
-      - judge0_pgdata:/var/lib/postgresql/data
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  judge0:
-    image: judge0/judge0:latest
-    container_name: judge0
-    restart: always
-    privileged: true
-    environment:
-      - RAILS_ENV=production
-      - SECRET_KEY_BASE=d41d8cd98f00b204e9800998ecf8427e
-      - DISABLE_WAIT_RESULT=false
-      - PORT=2358
-      - POSTGRES_HOST=judge0_db
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=${JUDGE0_DB_USER:-judge0}
-      - POSTGRES_PASSWORD=${JUDGE0_DB_PASSWORD:-judge0pass}
-      - POSTGRES_DB=${JUDGE0_DB_NAME:-judge0db}
-      - REDIS_HOST=judge0_redis
-      - REDIS_PORT=6379
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - app-network
-    ports:
-      - "2358:2358"
-    depends_on:
-      judge0_db:
-        condition: service_healthy
-      judge0_redis:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fs http://localhost:2358/system_info || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
+##############################################################################
+# VOLUMES AND NETWORK
+##############################################################################
 volumes:
   algoplatform_pgdata:
-  judge0_pgdata:
 
 networks:
   app-network:

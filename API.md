@@ -78,9 +78,9 @@ http://localhost:8080
 
 ### 3.1 Create Problem
 
-| Endpoint    | Method | Auth  | Description           |
-| ----------- | ------ | ----- | --------------------- |
-| `/problems` | POST   | Admin | Создание новой задачи |
+| Endpoint        | Method | Auth  | Description           |
+| --------------- | ------ | ----- | --------------------- |
+| `/api/problems` | POST   | Admin | Создание новой задачи |
 
 **Body:**
 
@@ -110,9 +110,9 @@ http://localhost:8080
 
 ### 3.2 List Problems
 
-| Endpoint    | Method | Auth | Description            |
-| ----------- | ------ | ---- | ---------------------- |
-| `/problems` | GET    | Yes  | Получение списка задач |
+| Endpoint        | Method | Auth | Description            |
+| --------------- | ------ | ---- | ---------------------- |
+| `api//problems` | GET    | Yes  | Получение списка задач |
 
 **Response (200 OK):**
 
@@ -129,9 +129,9 @@ http://localhost:8080
 
 ### 3.3 Get Problem Details
 
-| Endpoint           | Method | Auth | Description                    |
-| ------------------ | ------ | ---- | ------------------------------ |
-| `/problems/detail` | GET    | Yes  | Получение деталей задачи по id |
+| Endpoint               | Method | Auth | Description                    |
+| ---------------------- | ------ | ---- | ------------------------------ |
+| `/api/problems/detail` | GET    | Yes  | Получение деталей задачи по id |
 
 **Query params:** id — идентификатор задачи
 
@@ -164,9 +164,9 @@ http://localhost:8080
 
 ### 3.4 Delete Problem
 
-| Endpoint    | Method | Auth  | Description           |
-| ----------- | ------ | ----- | --------------------- |
-| `/problems` | DELETE | Admin | Удаление задачи по id |
+| Endpoint        | Method | Auth  | Description           |
+| --------------- | ------ | ----- | --------------------- |
+| `/api/problems` | DELETE | Admin | Удаление задачи по id |
 
 **Query params:** id — идентификатор задачи
 
@@ -178,9 +178,9 @@ http://localhost:8080
 
 ### 4.1 Create Submission
 
-| Endpoint       | Method | Auth | Description             |
-| -------------- | ------ | ---- | ----------------------- |
-| `/submissions` | POST   | Yes  | Создание новой отправки |
+| Endpoint           | Method | Auth | Description             |
+| ------------------ | ------ | ---- | ----------------------- |
+| `/api/submissions` | POST   | Yes  | Создание новой отправки |
 
 **Body:**
 
@@ -203,9 +203,9 @@ http://localhost:8080
 
 ### 4.2 Get Submission
 
-| Endpoint       | Method | Auth | Description              |
-| -------------- | ------ | ---- | ------------------------ |
-| `/submissions` | GET    | Yes  | Получение отправки по id |
+| Endpoint           | Method | Auth | Description              |
+| ------------------ | ------ | ---- | ------------------------ |
+| `/api/submissions` | GET    | Yes  | Получение отправки по id |
 
 **Query params:** id — идентификатор отправки
 

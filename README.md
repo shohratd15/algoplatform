@@ -20,13 +20,14 @@ It allows students to solve problems, submit code, and receive instant feedback 
 
 | Layer            | Technology             |
 | ---------------- | ---------------------- |
-| Language         | Go 1.23+               |
+| Language         | Go 1.24.5+             |
 | Framework        | net/http               |
 | Database         | PostgreSQL             |
 | Logger           | Zap                    |
 | Containerization | Docker, Docker Compose |
 | Build Tools      | Makefile               |
 | Configuration    | godotenv (.env)        |
+| Judge            | Judge0 RapidAPI        |
 
 ## 📂 Project Structure
 
@@ -70,7 +71,9 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=algoplatform
-JWT_SECRET=your_secret_key
+SECRET_KEY=your_secret_key
+JUDGE0_RAPID_API_HOST=judge0-ce.p.rapidapi.com
+JUDGE0_RAPID_API_KEY=your_key_in_rapidapi
 ```
 
 ## 🐳 Docker Setup

@@ -26,29 +26,43 @@ func NewRouter(
 		}
 	})
 
-	// Auth
+	// Auth (Public)
 	router.HandleFunc("POST /register", userHandler.Register)
 	router.HandleFunc("POST /login", userHandler.Login)
 
-	protected := http.NewServeMux()
+	protectedUserRouter := http.NewServeMux()
+
 	// Problems
-	protected.HandleFunc("POST /problems", problemHandler.Create)
-	protected.HandleFunc("GET /problems", problemHandler.List)
-	protected.HandleFunc("GET /problems/detail", problemHandler.GetById)
-	protected.HandleFunc("DELETE /problems", problemHandler.Delete)
+	protectedUserRouter.HandleFunc("GET /problems", problemHandler.List)
+	protectedUserRouter.HandleFunc("GET /problems/detail", problemHandler.GetById)
 
 	// Submissions
-	protected.HandleFunc("POST /submissions", submissionHandler.Create)
-	protected.HandleFunc("GET /submissions", submissionHandler.Get)
+	protectedUserRouter.HandleFunc("POST /submissions", submissionHandler.Create)
+	protectedUserRouter.HandleFunc("GET /submissions", submissionHandler.Get)
 
-	protectedWithMiddleware := Logging(
-		auth.JWT(RequireUser(protected)),
+	protectedUserMiddleware := Logging(
+		auth.JWT(RequireUser(protectedUserRouter)),
+		logger,
+	)
+
+	adminRouter := http.NewServeMux()
+
+	// Problems
+	adminRouter.HandleFunc("POST /problems", problemHandler.Create)
+	adminRouter.HandleFunc("DELETE /problems", problemHandler.Delete)
+
+	protectedAdminMiddleware := Logging(
+		auth.JWT(RequireAdmin(adminRouter)),
 		logger,
 	)
 
 	mainRouter := http.NewServeMux()
+
 	mainRouter.Handle("/", Logging(router, logger))
-	mainRouter.Handle("/api/", http.StripPrefix("/api", protectedWithMiddleware))
+
+	mainRouter.Handle("/api/", http.StripPrefix("/api", protectedUserMiddleware))
+
+	mainRouter.Handle("/api/admin/", http.StripPrefix("/api/admin", protectedAdminMiddleware))
 
 	return mainRouter
 }

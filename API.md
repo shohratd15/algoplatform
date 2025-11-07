@@ -2,7 +2,7 @@
 
 ## Base URL
 
-```
+```bash
 http://localhost:8080
 ```
 
@@ -78,9 +78,9 @@ http://localhost:8080
 
 ### 3.1 Create Problem
 
-| Endpoint        | Method | Auth  | Description           |
-| --------------- | ------ | ----- | --------------------- |
-| `/api/problems` | POST   | Admin | Создание новой задачи |
+| Endpoint              | Method | Auth  | Description           |
+| --------------------- | ------ | ----- | --------------------- |
+| `/api/admin/problems` | POST   | Admin | Создание новой задачи |
 
 **Body:**
 
@@ -90,7 +90,17 @@ http://localhost:8080
   "difficulty": "easy",
   "statements": [
     {
-      "language": "python",
+      "language": "ru",
+      "title": "Сумма",
+      "statement": "Найти сумму..."
+    },
+    {
+      "language": "tm",
+      "title": "Iki sanyn jemi",
+      "statement": "Iki sanyn jemini...."
+    },
+    {
+      "language": "en",
       "title": "Two Sum",
       "statement": "Find two numbers..."
     }
@@ -98,10 +108,17 @@ http://localhost:8080
   "tests": [
     {
       "id": 1,
-      "input_data": "1 2 3",
+      "input_data": "1 2",
       "expected_output": "3",
       "is_sample": true
-    }
+    },
+    {
+      "id": 2,
+      "input_data": "5 6",
+      "expected_output": "11",
+      "is_sample": true
+    },
+    ....
   ]
 }
 ```
@@ -112,7 +129,7 @@ http://localhost:8080
 
 | Endpoint        | Method | Auth | Description            |
 | --------------- | ------ | ---- | ---------------------- |
-| `api//problems` | GET    | Yes  | Получение списка задач |
+| `api/problems` | GET    | Yes  | Получение списка задач |
 
 **Response (200 OK):**
 
@@ -164,13 +181,14 @@ http://localhost:8080
 
 ### 3.4 Delete Problem
 
-| Endpoint        | Method | Auth  | Description           |
-| --------------- | ------ | ----- | --------------------- |
-| `/api/problems` | DELETE | Admin | Удаление задачи по id |
+| Endpoint              | Method | Auth  | Description           |
+| --------------------- | ------ | ----- | --------------------- |
+| `/api/admin/problems` | DELETE | Admin | Удаление задачи по id |
 
 **Query params:** id — идентификатор задачи
 
 **Response (204 No Content)**
+.
 
 ## 4️⃣ Submissions
 

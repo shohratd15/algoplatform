@@ -7,19 +7,21 @@ import (
 	"algoplatform/internal/usecase"
 	"algoplatform/pkg/log"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 type SubmissionHandler struct {
 	usecase usecase.SubmissionUsecase
+	val     domain.Validator
 	log     log.Logger
 }
 
-func NewSubmissionHandler(u usecase.SubmissionUsecase, logger log.Logger) *SubmissionHandler {
+func NewSubmissionHandler(u usecase.SubmissionUsecase, v domain.Validator, logger log.Logger) *SubmissionHandler {
 	return &SubmissionHandler{
 		usecase: u,
+		val:     v,
 		log:     logger,
 	}
 }
@@ -27,20 +29,24 @@ func NewSubmissionHandler(u usecase.SubmissionUsecase, logger log.Logger) *Submi
 // POST /submissions
 func (h *SubmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID     int64  `json:"user_id"`
-		ProblemID  int64  `json:"problem_id"`
-		LanguageID int    `json:"language_id"`
-		SourceCode string `json:"source_code"`
+		ProblemID  int64  `json:"problem_id" validate:"required,min=1"`
+		LanguageID int    `json:"language_id" validate:"required,min=1"`
+		SourceCode string `json:"source_code" validate:"required"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, errors.ErrInvalidRequestBody, http.StatusBadRequest)
+		return
+	}
 
+	if err := h.val.Struct(&req); err != nil {
+		h.log.Errorf("validation error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	sub := &domain.Submission{
-		UserID:     req.UserID,
+		UserID:     r.Context().Value(domain.ClaimsKey).(domain.Claims).UserID,
 		ProblemID:  req.ProblemID,
 		LanguageID: req.LanguageID,
 		SourceCode: req.SourceCode,
@@ -70,7 +76,14 @@ func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub, err := h.usecase.Get(r.Context(), parseID(idStr))
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		h.log.Errorf("failed to parse id: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	sub, err := h.usecase.Get(r.Context(), id)
 	if err != nil {
 		h.log.Errorf(errors.ErrSubmissionNotFound, err)
 		http.Error(w, errors.ErrSubmissionNotFound, http.StatusNotFound)
@@ -101,11 +114,4 @@ func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		h.log.Errorf(errors.ErrEncodeJson, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-func parseID(s string) int64 {
-	var id int64
-	_, _ = fmt.Sscan(s, &id)
-
-	return id
 }

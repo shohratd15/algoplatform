@@ -126,13 +126,13 @@ func (f Field) Error() error {
 }
 
 // Interface returns field interface
-func (f Field) Interface() interface{} {
+func (f Field) Interface() any {
 	return f.iface
 }
 
 // Any returns contained data as interface{}
 // nolint: gocyclo ...
-func (f Field) Any() interface{} {
+func (f Field) Any() any {
 	switch f.Type() {
 	case FieldTypeNil:
 		return nil
@@ -190,7 +190,7 @@ func Stringer(key string, value fmt.Stringer) Field {
 }
 
 // Sprintf constructs field of string type with formatting
-func Sprintf(key, format string, args ...interface{}) Field {
+func Sprintf(key, format string, args ...any) Field {
 	return Field{key: key, ftype: FieldTypeString, string: fmt.Sprintf(format, args...)}
 }
 
@@ -377,12 +377,12 @@ func Errors(key string, value []error) Field {
 }
 
 // Array constructs field of array type
-func Array(key string, value interface{}) Field {
+func Array(key string, value any) Field {
 	return Field{key: key, ftype: FieldTypeArray, iface: value}
 }
 
 // Reflect constructs field of unknown type
-func Reflect(key string, value interface{}) Field {
+func Reflect(key string, value any) Field {
 	return Field{key: key, ftype: FieldTypeReflect, iface: value}
 }
 

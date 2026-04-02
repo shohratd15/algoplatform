@@ -13,28 +13,37 @@ import (
 type UserHandler struct {
 	uc     usecase.UserUsecase
 	tokens domain.TokenService
+	val    domain.Validator
 	log    log.Logger
 }
 
-func NewUserHandler(uc usecase.UserUsecase, tokens domain.TokenService, logger log.Logger) *UserHandler {
+func NewUserHandler(uc usecase.UserUsecase, tokens domain.TokenService, v domain.Validator, logger log.Logger) *UserHandler {
 	return &UserHandler{
 		uc:     uc,
 		tokens: tokens,
+		val:    v,
 		log:    logger,
 	}
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Username string `json:"username" validate:"required,min=3,max=50"`
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=8"`
 		Role     string `json:"role"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Errorf(errors.ErrInvalidRequestBody, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.val.Struct(&req); err != nil {
+		h.log.Errorf("validation error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	err := h.uc.Register(r.Context(), req.Username, req.Email, req.Password, req.Role)
@@ -50,13 +59,20 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Errorf(errors.ErrInvalidRequestBody, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.val.Struct(&req); err != nil {
+		h.log.Errorf("validation error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	user, err := h.uc.Login(r.Context(), req.Email, req.Password)

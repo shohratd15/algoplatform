@@ -12,6 +12,7 @@ import (
 	"algoplatform/pkg/jwt"
 	logger "algoplatform/pkg/log"
 	"algoplatform/pkg/log/zap"
+	"algoplatform/pkg/validator"
 	"context"
 	"log"
 	"net/http"
@@ -58,9 +59,11 @@ func RunServer() {
 	ProblemService := usecase.NewProblemUsecase(problemRepo)
 	SubmissionService := usecase.NewSubmissionUsecase(submissionRepo)
 
-	UserHandler := handlers.NewUserHandler(UserService, tokens, logger)
-	ProblemHandler := handlers.NewProblemHandler(ProblemService, logger)
-	SubmissionHandler := handlers.NewSubmissionHandler(SubmissionService, logger)
+	val := validator.New()
+
+	UserHandler := handlers.NewUserHandler(UserService, tokens, val, logger)
+	ProblemHandler := handlers.NewProblemHandler(ProblemService, val, logger)
+	SubmissionHandler := handlers.NewSubmissionHandler(SubmissionService, val, logger)
 
 	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler, tokens)
 

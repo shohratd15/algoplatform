@@ -50,7 +50,7 @@ func (l *Logger) Trace(msg string, fields ...log.Field) {
 }
 
 // Tracef logs at Trace log level using fmt formatter
-func (l *Logger) Tracef(msg string, args ...interface{}) {
+func (l *Logger) Tracef(msg string, args ...any) {
 	if ce := l.L.Check(zap.DebugLevel, ""); ce != nil {
 		ce.Message = fmt.Sprintf(msg, args...)
 		ce.Write()
@@ -65,7 +65,7 @@ func (l *Logger) Debug(msg string, fields ...log.Field) {
 }
 
 // Debugf logs at Debug log level using fmt formatter
-func (l *Logger) Debugf(msg string, args ...interface{}) {
+func (l *Logger) Debugf(msg string, args ...any) {
 	if ce := l.L.Check(zap.DebugLevel, ""); ce != nil {
 		ce.Message = fmt.Sprintf(msg, args...)
 		ce.Write()
@@ -80,7 +80,7 @@ func (l *Logger) Info(msg string, fields ...log.Field) {
 }
 
 // Infof logs at Info log level using fmt formatter
-func (l *Logger) Infof(msg string, args ...interface{}) {
+func (l *Logger) Infof(msg string, args ...any) {
 	if ce := l.L.Check(zap.InfoLevel, ""); ce != nil {
 		ce.Message = fmt.Sprintf(msg, args...)
 		ce.Write()
@@ -95,7 +95,7 @@ func (l *Logger) Warn(msg string, fields ...log.Field) {
 }
 
 // Warnf logs at Warn log level using fmt formatter
-func (l *Logger) Warnf(msg string, args ...interface{}) {
+func (l *Logger) Warnf(msg string, args ...any) {
 	if ce := l.L.Check(zap.WarnLevel, ""); ce != nil {
 		ce.Message = fmt.Sprintf(msg, args...)
 		ce.Write()
@@ -110,7 +110,7 @@ func (l *Logger) Error(msg string, fields ...log.Field) {
 }
 
 // Errorf logs at Error log level using fmt formatter
-func (l *Logger) Errorf(msg string, args ...interface{}) {
+func (l *Logger) Errorf(msg string, args ...any) {
 	if ce := l.L.Check(zap.ErrorLevel, ""); ce != nil {
 		ce.Message = fmt.Sprintf(msg, args...)
 		ce.Write()
@@ -125,7 +125,7 @@ func (l *Logger) Fatal(msg string, fields ...log.Field) {
 }
 
 // Fatalf logs at Fatal log level using fmt formatter
-func (l *Logger) Fatalf(msg string, args ...interface{}) {
+func (l *Logger) Fatalf(msg string, args ...any) {
 	if ce := l.L.Check(zap.FatalLevel, ""); ce != nil {
 		ce.Message = fmt.Sprintf(msg, args...)
 		ce.Write()

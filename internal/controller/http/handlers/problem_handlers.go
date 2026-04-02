@@ -14,12 +14,14 @@ import (
 
 type ProblemHandler struct {
 	usecase usecase.ProblemUsecase
+	val     domain.Validator
 	log     log.Logger
 }
 
-func NewProblemHandler(u usecase.ProblemUsecase, logger log.Logger) *ProblemHandler {
+func NewProblemHandler(u usecase.ProblemUsecase, v domain.Validator, logger log.Logger) *ProblemHandler {
 	return &ProblemHandler{
 		usecase: u,
+		val:     v,
 		log:     logger,
 	}
 }
@@ -30,6 +32,12 @@ func (h *ProblemHandler) Create(w http.ResponseWriter, r *http.Request) {
 		h.log.Errorf(errors.ErrInvalidRequestBody, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
+		return
+	}
+
+	if err := h.val.Struct(&req); err != nil {
+		h.log.Errorf("validation error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -89,6 +97,8 @@ func (h *ProblemHandler) GetById(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		h.log.Errorf(errors.ErrParseIntID, err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
 	}
 
 	p, stmts, tests, err := h.usecase.GetById(r.Context(), id)
@@ -115,6 +125,8 @@ func (h *ProblemHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		h.log.Errorf(errors.ErrParseIntID, err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
 	}
 
 	if err := h.usecase.Delete(r.Context(), id); err != nil {
@@ -129,9 +141,9 @@ func (h *ProblemHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ProblemStatementDTO — простая структура для переноса данных о statement
 type ProblemStatementDTO struct {
-	Language  string `json:"language"`
-	Title     string `json:"title"`
-	Statement string `json:"statement"`
+	Language  string `json:"language" validate:"required"`
+	Title     string `json:"title" validate:"required"`
+	Statement string `json:"statement" validate:"required"`
 }
 
 // ProblemTestDTO — для тестов
@@ -144,10 +156,10 @@ type ProblemTestDTO struct {
 
 // CreateProblemRequest — DTO для запроса создания проблемы
 type CreateProblemRequest struct {
-	Slug       string                `json:"slug"`
-	Difficulty string                `json:"difficulty"`
-	Statements []ProblemStatementDTO `json:"statements"`
-	Tests      []ProblemTestDTO      `json:"tests"`
+	Slug       string                `json:"slug" validate:"required"`
+	Difficulty string                `json:"difficulty" validate:"required"`
+	Statements []ProblemStatementDTO `json:"statements" validate:"required,min=1,dive"`
+	Tests      []ProblemTestDTO      `json:"tests" validate:"required,min=1,dive"`
 }
 
 // toDomainStatements — маппинг слайса DTO в domain

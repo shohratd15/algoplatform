@@ -56,12 +56,18 @@ func (r *SubmissionRepo) GetByID(ctx context.Context, id int64) (*domain.Submiss
 
 func (r *SubmissionRepo) GetPending(ctx context.Context, limit int) ([]domain.Submission, error) {
 	q := `
-		SELECT id, user_id, problem_id, language_id, source_code, status, created_at, updated_at
-		FROM submissions WHERE status=$1
-		ORDER BY created_at ASC
-		LIMIT $2
+		UPDATE submissions 
+		SET status = $1, updated_at = $2
+		WHERE id IN (
+			SELECT id FROM submissions 
+			WHERE status = $3
+			ORDER BY created_at ASC
+			LIMIT $4
+			FOR UPDATE SKIP LOCKED
+		)
+		RETURNING id, user_id, problem_id, language_id, source_code, status, created_at, updated_at
 	`
-	rows, err := r.DB.Query(ctx, q, domain.StatusQueued, limit)
+	rows, err := r.DB.Query(ctx, q, domain.StatusRunning, time.Now(), domain.StatusQueued, limit)
 	if err != nil {
 		return nil, err
 	}

@@ -38,11 +38,35 @@ func (w *JudgeWorker) Start(ctx context.Context) {
 
 	w.log.Info("Judge Worker started and listening for submissions.")
 
+	numWorkers := 5
+	jobs := make(chan domain.Submission, 50)
+	errChan := make(chan error, 1)
+
+	// Start work pool
+	for i := range numWorkers {
+		go func(workerID int) {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case s, ok := <-jobs:
+					if !ok {
+						return
+					}
+					w.process(ctx, s)
+				}
+			}
+		}(i)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			w.log.Info("Judge Worker stopped.")
+			close(jobs)
 			return
+		case err := <-errChan:
+			w.log.Errorf("worker error: %v", err)
 		case <-ticker.C:
 			subs, err := w.subUsecase.ListPending(ctx, 5)
 			if err != nil {
@@ -57,19 +81,14 @@ func (w *JudgeWorker) Start(ctx context.Context) {
 
 			w.log.Debugf("Found %d pending submissions to process.", len(subs))
 			for _, s := range subs {
-				// Запускаем обработку каждого решения в отдельной горутине.
-				go w.process(ctx, s)
+				// Отправляем в канал воркер пула
+				jobs <- s
 			}
 		}
 	}
 }
 
 func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
-	if err := w.subUsecase.UpdateStatus(ctx, s.ID, domain.StatusRunning); err != nil {
-		w.log.Errorf("Submission %d: failed to set status RUNNING: %v", s.ID, err)
-		return
-	}
-
 	_, _, tests, err := w.probUsecase.GetById(ctx, s.ProblemID)
 	if err != nil {
 		w.log.Errorf("Submission %d: failed to get problem tests: %v", s.ID, err)
@@ -125,7 +144,7 @@ func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
 
 // pollForStatus опрашивает Judge0, пока не будет получен финальный статус или не истечет таймаут.
 func (w *JudgeWorker) pollForStatus(ctx context.Context, token string, interval time.Duration, maxChecks int) (int, error) {
-	for i := 0; i < maxChecks; i++ {
+	for range maxChecks {
 		time.Sleep(interval) // Ждем перед каждой проверкой
 
 		res, err := w.client.GetResult(ctx, token)

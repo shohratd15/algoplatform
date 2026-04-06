@@ -71,12 +71,12 @@ func RunServer() {
 	worker := worker.NewJudgeWorker(SubmissionService, ProblemService, judgeClient, logger)
 	go worker.Start(ctx)
 
+	go gracefulShutdown(cancel, logger)
+
 	logger.Infof("Starting HTTP server on :%s", cfg.ServerPort)
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
 		logger.Fatalf("Error running server: %v", err)
 	}
-
-	go gracefulShutdown(cancel, logger)
 }
 
 func gracefulShutdown(cancel context.CancelFunc, logger logger.Logger) {

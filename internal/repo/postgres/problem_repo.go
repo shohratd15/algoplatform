@@ -22,7 +22,7 @@ type ProblemRepo struct {
 func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	defer func() {
@@ -45,7 +45,7 @@ func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmt
 				VALUES($1, $2, $3, $4)`,
 			id, s.Language, s.Title, s.Statement)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
@@ -55,7 +55,7 @@ func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmt
 			VALUES($1, $2, $3, $4)`,
 			id, t.InputData, t.ExpectedOutput, t.IsSample)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 

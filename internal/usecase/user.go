@@ -4,6 +4,7 @@ import (
 	"algoplatform/internal/domain"
 	repo "algoplatform/internal/repo/postgres"
 	"context"
+	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -43,8 +44,8 @@ func (uc *userUsecase) Login(ctx context.Context, email, password string) (*doma
 		return nil, err
 	}
 
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
-		return nil, err
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, errors.New("invalid credentials")
 	}
 
 	return user, nil

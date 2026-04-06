@@ -60,6 +60,10 @@ func NewRouter(
 
 	mainRouter.Handle("/", Logging(router, logger))
 
+	// Public auth routes — доступны без JWT, но через /api/ префикс (фронт вызывает /api/login, /api/register)
+	mainRouter.HandleFunc("POST /api/register", userHandler.Register)
+	mainRouter.HandleFunc("POST /api/login", userHandler.Login)
+
 	mainRouter.Handle("/api/", http.StripPrefix("/api", protectedUserMiddleware))
 
 	mainRouter.Handle("/api/admin/", http.StripPrefix("/api/admin", protectedAdminMiddleware))

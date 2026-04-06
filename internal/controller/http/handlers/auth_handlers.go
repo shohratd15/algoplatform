@@ -86,7 +86,8 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	token, err := h.tokens.Generate(user.ID, user.Email, user.Role)
 	if err != nil {
 		h.log.Errorf(errors.ErrGenerateToken)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if err := json.NewEncoder(w).Encode(map[string]string{"token": token}); err != nil {

@@ -6,12 +6,17 @@
           <span class="logo-icon">▲</span>
           <span class="logo-text">AlgoPlatform</span>
         </router-link>
-        
+
         <div class="nav-links">
           <router-link to="/problems" class="nav-link">Problems</router-link>
-          <router-link to="/login" class="nav-link" v-if="!isAuthenticated">Login</router-link>
-          <router-link to="/register" class="btn btn-primary btn-sm" v-if="!isAuthenticated">Sign Up</router-link>
-          <a href="#" class="nav-link" v-if="isAuthenticated" @click.prevent="logout">Logout</a>
+          <template v-if="!auth.state.token">
+            <router-link to="/login" class="nav-link">Login</router-link>
+            <router-link to="/register" class="btn btn-primary btn-sm">Sign Up</router-link>
+          </template>
+          <template v-else>
+            <router-link to="/admin/problems" class="nav-link">Admin</router-link>
+            <a href="#" class="nav-link" @click.prevent="logout">Logout</a>
+          </template>
         </div>
       </div>
     </nav>
@@ -31,19 +36,14 @@
 </template>
 
 <script setup>
-import { ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from './stores/auth'
 
 const router = useRouter()
-const isAuthenticated = ref(!!localStorage.getItem('token'))
-
-watchEffect(() => {
-  isAuthenticated.value = !!localStorage.getItem('token')
-})
+const auth = useAuthStore()
 
 const logout = () => {
-  localStorage.removeItem('token')
-  isAuthenticated.value = false
+  auth.clearToken()
   router.push('/login')
 }
 </script>
@@ -83,7 +83,6 @@ const logout = () => {
 .logo-icon {
   color: var(--accent);
   font-size: 1.5rem;
-  text-shadow: 0 0 10px var(--accent-glow);
 }
 
 .logo-text {
@@ -105,9 +104,7 @@ const logout = () => {
   font-size: 0.95rem;
 }
 
-.nav-link:hover {
-  color: #fff;
-}
+.nav-link:hover { color: #fff; }
 
 .btn-sm {
   padding: 0.5rem 1rem;
@@ -116,7 +113,7 @@ const logout = () => {
 
 .main-content {
   flex: 1;
-  margin-top: 70px; /* offset navbar */
+  margin-top: 70px;
   display: flex;
   flex-direction: column;
 }
@@ -130,7 +127,6 @@ const logout = () => {
   margin-top: auto;
 }
 
-/* Page transitions */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;

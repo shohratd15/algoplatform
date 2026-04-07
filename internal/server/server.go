@@ -25,7 +25,8 @@ import (
 const (
 	serviceName  = "algoplatform"
 	envFile      = ".env"
-	SecretKeyTTL = 48 * time.Hour
+	AccessTTL    = 15 * time.Minute
+	RefreshTTL   = 7 * 24 * time.Hour
 )
 
 func RunServer() {
@@ -39,7 +40,7 @@ func RunServer() {
 		log.Fatalf("Error initialize logger: %v", err)
 	}
 
-	tokens := jwt.New(cfg.SecretKey, SecretKeyTTL)
+	tokens := jwt.New(cfg.SecretKey, AccessTTL, RefreshTTL)
 
 	defer cleanup()
 

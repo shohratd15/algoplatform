@@ -53,7 +53,7 @@ const handleLogin = async () => {
       password: password.value,
     })
 
-    auth.setToken(res.data.token)
+    auth.setAuth(res.data.token, res.data.refresh_token, res.data.role)
     router.push('/problems')
   } catch (err) {
     error.value = err.response?.data || 'Login failed. Please check credentials.'

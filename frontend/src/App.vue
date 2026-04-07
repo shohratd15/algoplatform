@@ -8,14 +8,19 @@
         </router-link>
 
         <div class="nav-links">
-          <router-link to="/problems" class="nav-link">Problems</router-link>
+          <router-link to="/problems" class="nav-link">{{ ui.t('navProblems') }}</router-link>
+          <select class="lang-select" :value="ui.state.locale" @change="onLocaleChange">
+            <option value="en">EN</option>
+            <option value="ru">RU</option>
+            <option value="tm">TM</option>
+          </select>
           <template v-if="!auth.state.token">
-            <router-link to="/login" class="nav-link">Login</router-link>
-            <router-link to="/register" class="btn btn-primary btn-sm">Sign Up</router-link>
+            <router-link to="/login" class="nav-link">{{ ui.t('navLogin') }}</router-link>
+            <router-link to="/register" class="btn btn-primary btn-sm">{{ ui.t('navSignup') }}</router-link>
           </template>
           <template v-else>
-            <router-link to="/admin/problems" class="nav-link">Admin</router-link>
-            <a href="#" class="nav-link" @click.prevent="logout">Logout</a>
+            <router-link v-if="auth.state.role === 'admin'" to="/admin/problems" class="nav-link">{{ ui.t('navAdmin') }}</router-link>
+            <a href="#" class="nav-link" @click.prevent="logout">{{ ui.t('navLogout') }}</a>
           </template>
         </div>
       </div>
@@ -38,13 +43,19 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { useUIStore } from './stores/ui'
 
 const router = useRouter()
 const auth = useAuthStore()
+const ui = useUIStore()
 
 const logout = () => {
   auth.clearToken()
   router.push('/login')
+}
+
+const onLocaleChange = (e) => {
+  ui.setLocale(e.target.value)
 }
 </script>
 
@@ -109,6 +120,14 @@ const logout = () => {
 .btn-sm {
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
+}
+
+.lang-select {
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
 }
 
 .main-content {

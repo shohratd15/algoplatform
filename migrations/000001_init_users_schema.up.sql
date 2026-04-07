@@ -8,3 +8,7 @@ CREATE TABLE users (
   password_hash TEXT NOT NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT now()
 );
+
+INSERT INTO users (username, email, role_user, password_hash) VALUES ('admin', 'admin@example.com', 'admin', '$2a$10$pDLdzBmVGebeubA772zpsuq5FOUUrUccrgE7W1wnkMVMwKoyVXTMe');
+INSERT INTO users (username, email, role_user, password_hash) VALUES ('shohrat', 'shohratd15@gmail.com', 'admin', '$2a$10$HDYDeEYvZV3ucR7eYKc30Op65L47bJaSWE3lQEkexDGC82E3q.zD.');
+INSERT INTO users (username, email, role_user, password_hash) VALUES ('user', 'user@example.com', 'user', '$2a$10$pDLdzBmVGebeubA772zpsuq5FOUUrUccrgE7W1wnkMVMwKoyVXTMe');

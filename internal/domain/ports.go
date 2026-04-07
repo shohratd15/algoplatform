@@ -2,8 +2,10 @@ package domain
 
 // TokenService — генерация и парсинг JWT
 type TokenService interface {
-	Generate(userID int64, email, role string) (string, error)
-	Parse(token string) (Claims, error)
+	GenerateAccess(userID int64, email, role string) (string, error)
+	GenerateRefresh(userID int64, email, role string) (string, error)
+	ParseAccess(token string) (Claims, error)
+	ParseRefresh(token string) (Claims, error)
 }
 
 type Claims struct {

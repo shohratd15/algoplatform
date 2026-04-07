@@ -62,7 +62,33 @@ http://localhost:8080
 
 ```json
 {
-  "token": "jwt_token"
+  "token": "jwt_token",
+  "refresh_token": "jwt_refresh_token",
+  "role": "admin|user"
+}
+```
+
+### 2.3 Refresh Token
+
+| Endpoint       | Method | Auth | Description              |
+| -------------- | ------ | ---- | ------------------------ |
+| `/api/refresh` | POST   | No   | Обновление access токена |
+
+**Body:**
+
+```json
+{
+  "refresh_token": "jwt_refresh_token"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "token": "new_access_token",
+  "refresh_token": "new_refresh_token",
+  "role": "admin|user"
 }
 ```
 
@@ -253,15 +279,16 @@ http://localhost:8080
 
 ## 6️⃣ Summary Table of Endpoints
 
-| Endpoint              | Method | Auth  | Description          |
-| --------------------- | ------ | ----- | -------------------- |
-| `/ping`            | GET    | No    | Health check         |
-| `/api/register`       | POST   | No    | Register user        |
-| `/api/login`          | POST   | No    | Login user           |
-| `/api/admin/problems` | POST   | Admin | Create problem       |
-| `/api/admin/problems` | PUT    | Admin | Update problem       |
-| `/api/problems`       | GET    | Yes   | List problems        |
-| `/api/problems/detail`| GET    | Yes   | Get problem details  |
-| `/api/admin/problems` | DELETE | Admin | Delete problem       |
-| `/api/submissions`    | POST   | Yes   | Create submission    |
-| `/api/submissions`    | GET    | Yes   | Get submission by id |
+| Endpoint               | Method | Auth  | Description          |
+| ---------------------- | ------ | ----- | -------------------- |
+| `/ping`                | GET    | No    | Health check         |
+| `/api/register`        | POST   | No    | Register user        |
+| `/api/login`           | POST   | No    | Login user           |
+| `/api/refresh`         | POST   | No    | Refresh tokens       |
+| `/api/admin/problems`  | POST   | Admin | Create problem       |
+| `/api/admin/problems`  | PUT    | Admin | Update problem       |
+| `/api/problems`        | GET    | Yes   | List problems        |
+| `/api/problems/detail` | GET    | Yes   | Get problem details  |
+| `/api/admin/problems`  | DELETE | Admin | Delete problem       |
+| `/api/submissions`     | POST   | Yes   | Create submission    |
+| `/api/submissions`     | GET    | Yes   | Get submission by id |

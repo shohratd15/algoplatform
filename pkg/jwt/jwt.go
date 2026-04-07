@@ -9,25 +9,36 @@ import (
 )
 
 type Service struct {
-	secret []byte
-	ttl    time.Duration
+	secret     []byte
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 }
 
 var _ domain.TokenService = (*Service)(nil)
 
-func New(secret string, ttl time.Duration) *Service {
+func New(secret string, accessTTL, refreshTTL time.Duration) *Service {
 	return &Service{
-		secret: []byte(secret),
-		ttl:    ttl,
+		secret:     []byte(secret),
+		accessTTL:  accessTTL,
+		refreshTTL: refreshTTL,
 	}
 }
 
-func (s *Service) Generate(userID int64, email, role string) (string, error) {
+func (s *Service) GenerateAccess(userID int64, email, role string) (string, error) {
+	return s.generate(userID, email, role, "access", s.accessTTL)
+}
+
+func (s *Service) GenerateRefresh(userID int64, email, role string) (string, error) {
+	return s.generate(userID, email, role, "refresh", s.refreshTTL)
+}
+
+func (s *Service) generate(userID int64, email, role, tokenType string, ttl time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
 		"role":    role,
-		"exp":     time.Now().Add(s.ttl).Unix(),
+		"type":    tokenType,
+		"exp":     time.Now().Add(ttl).Unix(),
 		"iat":     time.Now().Unix(),
 	}
 
@@ -36,7 +47,15 @@ func (s *Service) Generate(userID int64, email, role string) (string, error) {
 	return t.SignedString(s.secret)
 }
 
-func (s *Service) Parse(token string) (domain.Claims, error) {
+func (s *Service) ParseAccess(token string) (domain.Claims, error) {
+	return s.parseByType(token, "access")
+}
+
+func (s *Service) ParseRefresh(token string) (domain.Claims, error) {
+	return s.parseByType(token, "refresh")
+}
+
+func (s *Service) parseByType(token, expectedType string) (domain.Claims, error) {
 	var out domain.Claims
 
 	tok, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
@@ -51,6 +70,10 @@ func (s *Service) Parse(token string) (domain.Claims, error) {
 	}
 
 	if claims, ok := tok.Claims.(jwt.MapClaims); ok {
+		tokenType, _ := claims["type"].(string)
+		if tokenType != expectedType {
+			return out, errors.New("invalid token type")
+		}
 		out.UserID = int64(claims["user_id"].(float64))
 		out.Email = claims["email"].(string)
 		out.Role = claims["role"].(string)

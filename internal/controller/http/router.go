@@ -48,6 +48,7 @@ func NewRouter(
 	// для auth — /api/register и /api/login.
 	mainRouter.HandleFunc("POST /api/register", userHandler.Register)
 	mainRouter.HandleFunc("POST /api/login", userHandler.Login)
+	mainRouter.HandleFunc("POST /api/refresh", userHandler.Refresh)
 
 	// Защищённые пользовательские роуты: /api/*
 	mainRouter.Handle("/api/", http.StripPrefix("/api",

@@ -13,8 +13,19 @@
         </div>
 
         <div class="content" v-if="problem.statements && problem.statements.length > 0">
-          <h3>{{ problem.statements[0].title }}</h3>
-          <p class="statement-text">{{ problem.statements[0].statement }}</p>
+          <div class="lang-switch">
+            <button
+              v-for="lang in availableStatementLanguages"
+              :key="lang"
+              class="lang-btn"
+              :class="{ active: selectedStatementLanguage === lang }"
+              @click="selectedStatementLanguage = lang"
+            >
+              {{ languageLabel(lang) }}
+            </button>
+          </div>
+          <h3>{{ selectedStatement?.title }}</h3>
+          <p class="statement-text">{{ selectedStatement?.statement }}</p>
         </div>
 
         <div class="examples" v-if="sampleTests.length > 0">
@@ -47,12 +58,20 @@
           </button>
         </div>
 
-        <textarea
-          class="code-editor glass-panel"
-          v-model="sourceCode"
-          spellcheck="false"
-          placeholder="Write your code here..."
-        ></textarea>
+        <div class="editor-shell glass-panel">
+          <div class="line-numbers" ref="lineNumbersRef">
+            <div v-for="line in lineCount" :key="line">{{ line }}</div>
+          </div>
+          <textarea
+            ref="editorRef"
+            class="code-editor"
+            v-model="sourceCode"
+            spellcheck="false"
+            placeholder="Write your code here..."
+            @keydown.tab.prevent="handleTab"
+            @scroll="syncScroll"
+          ></textarea>
+        </div>
 
         <!-- Ошибка сабмита — в UI, не через alert() -->
         <div class="error-msg" v-if="submitError">{{ submitError }}</div>
@@ -93,6 +112,9 @@ const sourceCode = ref('')
 const submitting = ref(false)
 const submissionResult = ref(null)
 const submitError = ref('')
+const selectedStatementLanguage = ref('eng')
+const editorRef = ref(null)
+const lineNumbersRef = ref(null)
 
 // Таймер храним в ref, чтобы очистить при unmount
 const pollTimer = ref(null)
@@ -103,11 +125,24 @@ const sampleTests = computed(() => {
   if (!problem.value?.tests) return []
   return problem.value.tests.filter((t) => t.is_sample)
 })
+const lineCount = computed(() => Math.max(1, sourceCode.value.split('\n').length))
+const availableStatementLanguages = computed(() => {
+  const stmts = problem.value?.statements || []
+  return [...new Set(stmts.map((s) => normalizeLang(s.language)).filter(Boolean))]
+})
+const selectedStatement = computed(() => {
+  const stmts = problem.value?.statements || []
+  if (!stmts.length) return null
+  const found = stmts.find((s) => normalizeLang(s.language) === selectedStatementLanguage.value)
+  return found || stmts[0]
+})
 
 const fetchProblem = async () => {
   try {
     const res = await client.get(`/problems/detail?id=${route.params.id}`)
     problem.value = res.data
+    const langs = [...new Set((res.data?.statements || []).map((s) => normalizeLang(s.language)).filter(Boolean))]
+    if (langs.length) selectedStatementLanguage.value = langs[0]
   } catch (err) {
     // 401 обрабатывает interceptor; остальное — редирект на список
     if (err.response?.status !== 401) {
@@ -116,6 +151,21 @@ const fetchProblem = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const normalizeLang = (lang) => {
+  const l = (lang || '').toLowerCase()
+  if (l === 'en' || l === 'eng') return 'eng'
+  if (l === 'ru' || l === 'rus') return 'rus'
+  if (l === 'tm' || l === 'tkm' || l === 'tk') return 'tkm'
+  return l
+}
+
+const languageLabel = (lang) => {
+  if (lang === 'eng') return 'EN'
+  if (lang === 'rus') return 'RU'
+  if (lang === 'tkm') return 'TM'
+  return (lang || '').toUpperCase()
 }
 
 const submitCode = async () => {
@@ -163,6 +213,25 @@ const pollResult = async () => {
   } catch (err) {
     console.error('Poll failed', err)
   }
+}
+
+const syncScroll = () => {
+  if (!editorRef.value || !lineNumbersRef.value) return
+  lineNumbersRef.value.scrollTop = editorRef.value.scrollTop
+}
+
+const handleTab = (e) => {
+  const el = e.target
+  const tab = '  '
+  const start = el.selectionStart
+  const end = el.selectionEnd
+  const current = sourceCode.value
+
+  sourceCode.value = `${current.slice(0, start)}${tab}${current.slice(end)}`
+  requestAnimationFrame(() => {
+    el.selectionStart = el.selectionEnd = start + tab.length
+    syncScroll()
+  })
 }
 
 onMounted(fetchProblem)
@@ -238,6 +307,27 @@ onUnmounted(() => {
 .content h3 { margin-bottom: 1rem; }
 .statement-text { white-space: pre-wrap; }
 
+.lang-switch {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lang-btn {
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.lang-btn.active {
+  color: #fff;
+  border-color: rgba(0, 255, 136, 0.4);
+  background: rgba(0, 255, 136, 0.1);
+}
+
 .example-box {
   background: rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
@@ -272,12 +362,37 @@ onUnmounted(() => {
   outline: none;
 }
 
-.code-editor {
+.editor-shell {
   flex: 1;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  overflow: hidden;
+}
+
+.line-numbers {
+  padding: 1rem 0.5rem;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  border-right: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.code-editor {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
   resize: none;
   font-family: 'Fira Code', 'Courier New', monospace;
   font-size: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
+  line-height: 1.6;
   white-space: pre;
 }
 

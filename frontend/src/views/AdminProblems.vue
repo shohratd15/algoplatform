@@ -1,16 +1,25 @@
 <template>
   <div class="admin-wrapper">
     <div class="header-section animate-fade-up">
-      <h1>Admin Problem Management</h1>
-      <p class="subtitle">Create, update, and delete algorithm problems.</p>
+      <h1>{{ ui.t('adminTitle') }}</h1>
+      <p class="subtitle">{{ ui.t('adminSubtitle') }}</p>
     </div>
 
     <div class="status" v-if="error">{{ error }}</div>
     <div class="status success" v-if="success">{{ success }}</div>
 
-    <div class="layout">
+    <div class="mode-switch">
+      <button class="btn btn-outline btn-sm" :class="{ active: mode === 'create' }" @click="mode = 'create'">
+        {{ ui.t('createSection') }}
+      </button>
+      <button class="btn btn-outline btn-sm" :class="{ active: mode === 'manage' }" @click="mode = 'manage'">
+        {{ ui.t('manageSection') }}
+      </button>
+    </div>
+
+    <div class="layout" v-if="mode === 'create'">
       <section class="glass-panel panel">
-        <h2>Create Problem</h2>
+        <h2>{{ ui.t('createSection') }}</h2>
         <form @submit.prevent="createProblem" class="form">
           <input v-model="createForm.slug" placeholder="slug (e.g. two-sum)" required />
           <select v-model="createForm.difficulty" required>
@@ -18,40 +27,83 @@
             <option value="medium">medium</option>
             <option value="hard">hard</option>
           </select>
-          <textarea
-            v-model="createForm.statementsJson"
-            rows="7"
-            placeholder='statements JSON: [{"language":"en","title":"Two Sum","statement":"..."}]'
-            required
-          />
-          <textarea
-            v-model="createForm.testsJson"
-            rows="7"
-            placeholder='tests JSON: [{"input_data":"1 2","expected_output":"3","is_sample":true}]'
-            required
-          />
+
+          <h3>Statements</h3>
+          <div v-for="(statement, idx) in createForm.statements" :key="idx" class="row-card">
+            <select v-model="statement.language" required>
+              <option value="en">EN</option>
+              <option value="ru">RU</option>
+              <option value="tm">TM</option>
+            </select>
+            <input v-model="statement.title" placeholder="title" required />
+            <textarea v-model="statement.statement" rows="4" placeholder="problem statement" required />
+            <button class="btn btn-outline btn-sm" type="button" @click="removeStatement(createForm, idx)">Remove</button>
+          </div>
+          <button class="btn btn-outline" type="button" @click="addStatement(createForm)">+ Add statement</button>
+
+          <h3>Tests</h3>
+          <div v-for="(test, idx) in createForm.tests" :key="idx" class="row-card">
+            <textarea v-model="test.input_data" rows="2" placeholder="input" required />
+            <textarea v-model="test.expected_output" rows="2" placeholder="expected output" required />
+            <label class="checkbox-line">
+              <input type="checkbox" v-model="test.is_sample" />
+              Sample test
+            </label>
+            <button class="btn btn-outline btn-sm" type="button" @click="removeTest(createForm, idx)">Remove</button>
+          </div>
+          <button class="btn btn-outline" type="button" @click="addTest(createForm)">+ Add test</button>
+
           <button class="btn btn-primary" :disabled="loading">{{ loading ? 'Saving...' : 'Create' }}</button>
         </form>
       </section>
+    </div>
 
+    <div class="layout" v-else>
       <section class="glass-panel panel">
-        <h2>Update Problem</h2>
+        <h2>{{ ui.t('manageSection') }}</h2>
         <form @submit.prevent="updateProblem" class="form">
           <input v-model.number="updateForm.id" type="number" min="1" placeholder="problem id" required />
+          <button class="btn btn-outline btn-sm" type="button" @click="loadProblemToUpdate" :disabled="loading">
+            Load by ID
+          </button>
           <input v-model="updateForm.slug" placeholder="new slug" required />
           <select v-model="updateForm.difficulty" required>
             <option value="easy">easy</option>
             <option value="medium">medium</option>
             <option value="hard">hard</option>
           </select>
-          <textarea v-model="updateForm.statementsJson" rows="7" required />
-          <textarea v-model="updateForm.testsJson" rows="7" required />
+
+          <h3>Statements</h3>
+          <div v-for="(statement, idx) in updateForm.statements" :key="idx" class="row-card">
+            <select v-model="statement.language" required>
+              <option value="en">EN</option>
+              <option value="ru">RU</option>
+              <option value="tm">TM</option>
+            </select>
+            <input v-model="statement.title" placeholder="title" required />
+            <textarea v-model="statement.statement" rows="4" placeholder="problem statement" required />
+            <button class="btn btn-outline btn-sm" type="button" @click="removeStatement(updateForm, idx)">Remove</button>
+          </div>
+          <button class="btn btn-outline" type="button" @click="addStatement(updateForm)">+ Add statement</button>
+
+          <h3>Tests</h3>
+          <div v-for="(test, idx) in updateForm.tests" :key="idx" class="row-card">
+            <textarea v-model="test.input_data" rows="2" placeholder="input" required />
+            <textarea v-model="test.expected_output" rows="2" placeholder="expected output" required />
+            <label class="checkbox-line">
+              <input type="checkbox" v-model="test.is_sample" />
+              Sample test
+            </label>
+            <button class="btn btn-outline btn-sm" type="button" @click="removeTest(updateForm, idx)">Remove</button>
+          </div>
+          <button class="btn btn-outline" type="button" @click="addTest(updateForm)">+ Add test</button>
+
           <button class="btn btn-primary" :disabled="loading">{{ loading ? 'Updating...' : 'Update' }}</button>
         </form>
       </section>
     </div>
 
-    <section class="glass-panel panel">
+    <section class="glass-panel panel" v-if="mode === 'manage'">
       <h2>Delete Problem</h2>
       <form @submit.prevent="deleteProblem" class="inline-form">
         <input v-model.number="deleteId" type="number" min="1" placeholder="problem id" required />
@@ -78,26 +130,29 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import client from '../api/client'
+import { useUIStore } from '../stores/ui'
 
 const problems = ref([])
 const loading = ref(false)
 const listLoading = ref(false)
 const error = ref('')
 const success = ref('')
+const mode = ref('create')
+const ui = useUIStore()
 
 const createForm = ref({
   slug: '',
   difficulty: 'easy',
-  statementsJson: '[{"language":"en","title":"Title","statement":"Statement"}]',
-  testsJson: '[{"input_data":"1 2","expected_output":"3","is_sample":true}]',
+  statements: [{ language: 'en', title: '', statement: '' }],
+  tests: [{ input_data: '', expected_output: '', is_sample: true }],
 })
 
 const updateForm = ref({
   id: null,
   slug: '',
   difficulty: 'easy',
-  statementsJson: '[{"language":"en","title":"Title","statement":"Statement"}]',
-  testsJson: '[{"input_data":"1 2","expected_output":"3","is_sample":true}]',
+  statements: [{ language: 'en', title: '', statement: '' }],
+  tests: [{ input_data: '', expected_output: '', is_sample: true }],
 })
 
 const deleteId = ref(null)
@@ -107,14 +162,28 @@ const resetMessages = () => {
   success.value = ''
 }
 
-const parseJsonField = (raw, fieldName) => {
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) throw new Error('must be array')
-    return parsed
-  } catch {
-    throw new Error(`${fieldName} must be valid JSON array`)
-  }
+const addStatement = (formRef) => {
+  formRef.value.statements.push({ language: 'en', title: '', statement: '' })
+}
+
+const removeStatement = (formRef, idx) => {
+  if (formRef.value.statements.length === 1) return
+  formRef.value.statements.splice(idx, 1)
+}
+
+const addTest = (formRef) => {
+  formRef.value.tests.push({ input_data: '', expected_output: '', is_sample: false })
+}
+
+const removeTest = (formRef, idx) => {
+  if (formRef.value.tests.length === 1) return
+  formRef.value.tests.splice(idx, 1)
+}
+
+const ensureFormValid = (form) => {
+  if (!form.slug.trim()) throw new Error('Slug is required')
+  if (!form.statements.length) throw new Error('At least one statement is required')
+  if (!form.tests.length) throw new Error('At least one test is required')
 }
 
 const fetchProblems = async () => {
@@ -134,18 +203,54 @@ const createProblem = async () => {
   loading.value = true
   resetMessages()
   try {
-    const statements = parseJsonField(createForm.value.statementsJson, 'statements')
-    const tests = parseJsonField(createForm.value.testsJson, 'tests')
+    ensureFormValid(createForm.value)
     await client.post('/admin/problems', {
       slug: createForm.value.slug,
       difficulty: createForm.value.difficulty,
-      statements,
-      tests,
+      statements: createForm.value.statements,
+      tests: createForm.value.tests,
     })
     success.value = 'Problem created'
+    createForm.value = {
+      slug: '',
+      difficulty: 'easy',
+      statements: [{ language: 'en', title: '', statement: '' }],
+      tests: [{ input_data: '', expected_output: '', is_sample: true }],
+    }
     await fetchProblems()
   } catch (err) {
     error.value = err.message || err.response?.data || 'Failed to create problem'
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadProblemToUpdate = async () => {
+  if (!updateForm.value.id) {
+    error.value = 'Enter problem id first'
+    return
+  }
+  loading.value = true
+  resetMessages()
+  try {
+    const res = await client.get(`/problems/detail?id=${updateForm.value.id}`)
+    updateForm.value.slug = res.data.problem.slug
+    updateForm.value.difficulty = res.data.problem.difficulty
+    updateForm.value.statements = (res.data.statements || []).map((s) => ({
+      language: s.language?.slice(0, 2) || 'en',
+      title: s.title || '',
+      statement: s.statement || '',
+    }))
+    updateForm.value.tests = (res.data.tests || []).map((t) => ({
+      input_data: t.input_data || '',
+      expected_output: t.expected_output || '',
+      is_sample: !!t.is_sample,
+    }))
+    if (!updateForm.value.statements.length) addStatement(updateForm)
+    if (!updateForm.value.tests.length) addTest(updateForm)
+    success.value = 'Problem loaded'
+  } catch (err) {
+    error.value = err.response?.data || 'Failed to load problem by id'
   } finally {
     loading.value = false
   }
@@ -155,13 +260,12 @@ const updateProblem = async () => {
   loading.value = true
   resetMessages()
   try {
-    const statements = parseJsonField(updateForm.value.statementsJson, 'statements')
-    const tests = parseJsonField(updateForm.value.testsJson, 'tests')
+    ensureFormValid(updateForm.value)
     await client.put(`/admin/problems?id=${updateForm.value.id}`, {
       slug: updateForm.value.slug,
       difficulty: updateForm.value.difficulty,
-      statements,
-      tests,
+      statements: updateForm.value.statements,
+      tests: updateForm.value.tests,
     })
     success.value = 'Problem updated'
     await fetchProblems()
@@ -207,7 +311,7 @@ onMounted(fetchProblems)
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -215,6 +319,13 @@ onMounted(fetchProblems)
 .panel {
   padding: 1rem;
   margin-bottom: 1rem;
+}
+
+h3 {
+  margin-top: 0.6rem;
+  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
 }
 
 .form,
@@ -227,6 +338,15 @@ onMounted(fetchProblems)
 .inline-form {
   flex-direction: row;
   align-items: center;
+}
+
+.row-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
 input,
@@ -246,6 +366,25 @@ textarea {
 
 .status.success {
   color: #27c93f;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.mode-switch .active {
+  border-color: rgba(0, 255, 136, 0.4);
+  background: rgba(0, 255, 136, 0.12);
+}
+
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 .list-head {

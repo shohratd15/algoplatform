@@ -12,7 +12,7 @@ const routes = [
   { path: '/register', name: 'Register', component: Register },
   { path: '/problems', name: 'Problems', component: ProblemsList, meta: { requiresAuth: true } },
   { path: '/problems/:id', name: 'ProblemDetail', component: ProblemDetail, meta: { requiresAuth: true } },
-  { path: '/admin/problems', name: 'AdminProblems', component: AdminProblems, meta: { requiresAuth: true } },
+  { path: '/admin/problems', name: 'AdminProblems', component: AdminProblems, meta: { requiresAuth: true, requiresAdmin: true } },
 ]
 
 const router = createRouter({
@@ -23,6 +23,9 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.meta.requiresAuth && !localStorage.getItem('token')) {
     return { name: 'Login' }
+  }
+  if (to.meta.requiresAdmin && localStorage.getItem('role') !== 'admin') {
+    return { name: 'Problems' }
   }
 })
 

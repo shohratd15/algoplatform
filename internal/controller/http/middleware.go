@@ -13,7 +13,7 @@ import (
 func CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 
 		if r.Method == http.MethodOptions {
@@ -45,7 +45,7 @@ func (m *AuthMiddleware) JWT(next http.Handler) http.Handler {
 			return
 		}
 
-		c, err := m.Tokens.Parse(strings.TrimPrefix(h, "Bearer "))
+		c, err := m.Tokens.ParseAccess(strings.TrimPrefix(h, "Bearer "))
 		if err != nil {
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return

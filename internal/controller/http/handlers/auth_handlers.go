@@ -79,12 +79,63 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.tokens.Generate(user.ID, user.Email, user.Role)
+	accessToken, err := h.tokens.GenerateAccess(user.ID, user.Email, user.Role)
+	if err != nil {
+		h.log.Errorf(errors.ErrGenerateToken)
+		http.Error(w, "failed to generate token", http.StatusInternalServerError)
+		return
+	}
+	refreshToken, err := h.tokens.GenerateRefresh(user.ID, user.Email, user.Role)
 	if err != nil {
 		h.log.Errorf(errors.ErrGenerateToken)
 		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"token": token})
+	writeJSON(w, http.StatusOK, map[string]string{
+		"token":         accessToken,
+		"refresh_token": refreshToken,
+		"role":          user.Role,
+	})
+}
+
+func (h *UserHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.log.Errorf(errors.ErrInvalidRequestBody, err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if err := h.val.Struct(&req); err != nil {
+		h.log.Errorf("validation error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	claims, err := h.tokens.ParseRefresh(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "invalid refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	accessToken, err := h.tokens.GenerateAccess(claims.UserID, claims.Email, claims.Role)
+	if err != nil {
+		h.log.Errorf(errors.ErrGenerateToken)
+		http.Error(w, "failed to generate token", http.StatusInternalServerError)
+		return
+	}
+	refreshToken, err := h.tokens.GenerateRefresh(claims.UserID, claims.Email, claims.Role)
+	if err != nil {
+		h.log.Errorf(errors.ErrGenerateToken)
+		http.Error(w, "failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"token":         accessToken,
+		"refresh_token": refreshToken,
+		"role":          claims.Role,
+	})
 }

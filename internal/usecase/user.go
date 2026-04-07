@@ -10,7 +10,7 @@ import (
 )
 
 type UserUsecase interface {
-	Register(ctx context.Context, username, email, password string, role string) error
+	Register(ctx context.Context, username, email, password string) error
 	Login(ctx context.Context, email, password string) (*domain.User, error)
 }
 
@@ -22,7 +22,7 @@ func NewUserUsecase(r repo.UserRepository) UserUsecase {
 	return &userUsecase{repo: r}
 }
 
-func (uc *userUsecase) Register(ctx context.Context, username, email, password string, role string) error {
+func (uc *userUsecase) Register(ctx context.Context, username, email, password string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (uc *userUsecase) Register(ctx context.Context, username, email, password s
 	user := &domain.User{
 		Username:     username,
 		Email:        email,
-		Role:         role,
+		Role:         "user",
 		PasswordHash: string(hash),
 	}
 

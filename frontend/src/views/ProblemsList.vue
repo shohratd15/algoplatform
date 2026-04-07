@@ -5,19 +5,21 @@
       <p class="subtitle">Select a problem to solve and improve your algorithmic skills.</p>
     </div>
 
-    <!-- Need admin role or custom logic to show "Create Problem" button ideally, hidden for now -->
-
     <div class="problem-list animate-fade-up" style="animation-delay: 0.1s">
       <div v-if="loading" class="loading">Loading challenges...</div>
-      
+
+      <div v-else-if="error" class="error-state glass-panel">
+        <p>{{ error }}</p>
+      </div>
+
       <div v-else-if="problems.length === 0" class="empty-state glass-panel">
         <p>No problems available yet.</p>
       </div>
 
       <div v-else class="grid">
-        <router-link 
-          v-for="p in problems" 
-          :key="p.id" 
+        <router-link
+          v-for="p in problems"
+          :key="p.id"
           :to="'/problems/' + p.id"
           class="problem-card glass-panel"
         >
@@ -29,7 +31,7 @@
           </div>
           <h3>{{ p.slug.replace(/-/g, ' ') }}</h3>
           <p class="date">Added on {{ new Date(p.created_at).toLocaleDateString() }}</p>
-          
+
           <div class="card-action">
             <span>Solve Challenge</span>
             <span class="arrow">→</span>
@@ -42,39 +44,30 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { useRouter } from 'vue-router'
+import client from '../api/client'
 
 const problems = ref([])
 const loading = ref(true)
-const router = useRouter()
+const error = ref('')
 
 const fetchProblems = async () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    router.push('/login')
-    return
-  }
+  loading.value = true
+  error.value = ''
 
   try {
-    const res = await axios.get('/api/problems', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const res = await client.get('/problems')
     problems.value = res.data || []
   } catch (err) {
-    console.error("Failed to fetch problems", err)
-    if(err.response?.status === 401) {
-      localStorage.removeItem('token')
-      router.push('/login')
+    // 401 обрабатывается interceptor-ом — редирект на /login
+    if (err.response?.status !== 401) {
+      error.value = 'Failed to load problems. Please try again.'
     }
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  fetchProblems()
-})
+onMounted(fetchProblems)
 </script>
 
 <style scoped>
@@ -90,9 +83,7 @@ onMounted(() => {
   margin-bottom: 3rem;
 }
 
-.header-section h1 {
-  margin-bottom: 0.5rem;
-}
+.header-section h1 { margin-bottom: 0.5rem; }
 
 .grid {
   display: grid;
@@ -127,9 +118,9 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.diff-badge.easy { background: rgba(39, 201, 63, 0.15); color: #27c93f; }
+.diff-badge.easy   { background: rgba(39, 201, 63, 0.15);  color: #27c93f; }
 .diff-badge.medium { background: rgba(255, 189, 46, 0.15); color: #ffbd2e; }
-.diff-badge.hard { background: rgba(255, 95, 86, 0.15); color: #ff5f56; }
+.diff-badge.hard   { background: rgba(255, 95, 86, 0.15);  color: #ff5f56; }
 
 .id-badge {
   color: var(--text-muted);
@@ -160,17 +151,14 @@ onMounted(() => {
   border-top: 1px solid var(--glass-border);
 }
 
-.arrow {
-  transition: transform 0.2s;
-}
+.arrow { transition: transform 0.2s; }
+.problem-card:hover .arrow { transform: translateX(4px); }
 
-.problem-card:hover .arrow {
-  transform: translateX(4px);
-}
-
-.loading, .empty-state {
+.loading, .empty-state, .error-state {
   text-align: center;
   padding: 4rem;
   color: var(--text-muted);
 }
+
+.error-state { color: #ff5f56; }
 </style>

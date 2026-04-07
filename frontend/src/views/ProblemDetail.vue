@@ -4,7 +4,7 @@
       <!-- Left: Statement -->
       <div class="pane left-pane glass-panel">
         <router-link to="/problems" class="back-link">← Back to problems</router-link>
-        
+
         <div class="problem-header">
           <h2>{{ problem.problem.slug.replace(/-/g, ' ') }}</h2>
           <span class="diff-badge" :class="problem.problem.difficulty.toLowerCase()">
@@ -13,12 +13,11 @@
         </div>
 
         <div class="content" v-if="problem.statements && problem.statements.length > 0">
-          <!-- We just show the first statement translation for simplicity -->
           <h3>{{ problem.statements[0].title }}</h3>
           <p class="statement-text">{{ problem.statements[0].statement }}</p>
         </div>
 
-        <div class="examples" v-if="problem.tests && problem.tests.length > 0">
+        <div class="examples" v-if="sampleTests.length > 0">
           <h3>Examples</h3>
           <div v-for="(t, i) in sampleTests" :key="i" class="example-box">
             <div class="io-block">
@@ -48,19 +47,26 @@
           </button>
         </div>
 
-        <textarea 
-          class="code-editor glass-panel" 
-          v-model="sourceCode" 
+        <textarea
+          class="code-editor glass-panel"
+          v-model="sourceCode"
           spellcheck="false"
           placeholder="Write your code here..."
         ></textarea>
-        
+
+        <!-- Ошибка сабмита — в UI, не через alert() -->
+        <div class="error-msg" v-if="submitError">{{ submitError }}</div>
+
         <div class="result-box glass-panel" v-if="submissionResult">
           <h3>Submission Result</h3>
           <div class="status-badge" :class="submissionResult.status">
-            {{ submissionResult.status.replace('_', ' ').toUpperCase() }}
+            {{ submissionResult.status.replace(/_/g, ' ').toUpperCase() }}
           </div>
-          <button class="btn btn-outline btn-sm" @click="pollResult" v-if="submissionResult.status === 'queued' || submissionResult.status === 'running'">
+          <button
+            class="btn btn-outline btn-sm"
+            @click="pollResult"
+            v-if="submissionResult.status === 'queued' || submissionResult.status === 'running'"
+          >
             Refresh Status
           </button>
         </div>
@@ -73,35 +79,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import client from '../api/client'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(true)
 const problem = ref(null)
-const languageId = ref(71) // Default to Python
+const languageId = ref(71)
 const sourceCode = ref('')
 const submitting = ref(false)
 const submissionResult = ref(null)
+const submitError = ref('')
+
+// Таймер храним в ref, чтобы очистить при unmount
+const pollTimer = ref(null)
+const MAX_POLL_ATTEMPTS = 15
+let pollAttempts = 0
 
 const sampleTests = computed(() => {
   if (!problem.value?.tests) return []
-  return problem.value.tests.filter(t => t.is_sample)
+  return problem.value.tests.filter((t) => t.is_sample)
 })
 
 const fetchProblem = async () => {
   try {
-    const token = localStorage.getItem('token')
-    const res = await axios.get(`/api/problems/detail?id=${route.params.id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const res = await client.get(`/problems/detail?id=${route.params.id}`)
     problem.value = res.data
   } catch (err) {
-    console.error(err)
-    router.push('/problems')
+    // 401 обрабатывает interceptor; остальное — редирект на список
+    if (err.response?.status !== 401) {
+      router.push('/problems')
+    }
   } finally {
     loading.value = false
   }
@@ -109,59 +120,62 @@ const fetchProblem = async () => {
 
 const submitCode = async () => {
   submitting.value = true
+  submitError.value = ''
+  submissionResult.value = null
+  pollAttempts = 0
+
   try {
-    const token = localStorage.getItem('token')
-    const res = await axios.post('/api/submissions', {
+    const res = await client.post('/submissions', {
       problem_id: parseInt(route.params.id),
       language_id: languageId.value,
-      source_code: sourceCode.value
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
+      source_code: sourceCode.value,
     })
-    
+
     submissionResult.value = { id: res.data.id, status: 'queued' }
-    
-    // Start auto-poll
-    setTimeout(pollResult, 1000)
-    
+    schedulePoll(1000)
   } catch (err) {
-    alert("Submission failed: " + (err.response?.data || err.message))
+    submitError.value = 'Submission failed: ' + (err.response?.data || err.message)
   } finally {
     submitting.value = false
   }
 }
 
+const schedulePoll = (delay) => {
+  pollTimer.value = setTimeout(pollResult, delay)
+}
+
 const pollResult = async () => {
   if (!submissionResult.value?.id) return
-  
+  if (pollAttempts >= MAX_POLL_ATTEMPTS) {
+    submissionResult.value.status = 'error'
+    return
+  }
+
+  pollAttempts++
+
   try {
-    const token = localStorage.getItem('token')
-    const res = await axios.get(`/api/submissions?id=${submissionResult.value.id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    
+    const res = await client.get(`/submissions?id=${submissionResult.value.id}`)
     submissionResult.value = res.data
-    
+
     if (res.data.status === 'queued' || res.data.status === 'running') {
-      setTimeout(pollResult, 2000) // Poll again
+      schedulePoll(2000)
     }
   } catch (err) {
-    console.error("Poll failed", err)
+    console.error('Poll failed', err)
   }
 }
 
-onMounted(() => {
-  if (!localStorage.getItem('token')) {
-    router.push('/login')
-    return
-  }
-  fetchProblem()
+onMounted(fetchProblem)
+
+// Очищаем таймер при уходе со страницы — не допускаем утечки
+onUnmounted(() => {
+  if (pollTimer.value) clearTimeout(pollTimer.value)
 })
 </script>
 
 <style scoped>
 .detail-wrapper {
-  height: calc(100vh - 70px); /* Fill screen minus navbar */
+  height: calc(100vh - 70px);
   padding: 1.5rem;
   overflow: hidden;
 }
@@ -211,49 +225,36 @@ onMounted(() => {
   font-weight: 700;
   text-transform: uppercase;
 }
-.diff-badge.easy { background: rgba(39, 201, 63, 0.15); color: #27c93f; }
+
+.diff-badge.easy   { background: rgba(39, 201, 63, 0.15);  color: #27c93f; }
 .diff-badge.medium { background: rgba(255, 189, 46, 0.15); color: #ffbd2e; }
-.diff-badge.hard { background: rgba(255, 95, 86, 0.15); color: #ff5f56; }
+.diff-badge.hard   { background: rgba(255, 95, 86, 0.15);  color: #ff5f56; }
 
 .content {
   margin-bottom: 3rem;
   color: #ccc;
 }
 
-.content h3 {
-  margin-bottom: 1rem;
-}
-
-.statement-text {
-  white-space: pre-wrap; /* render formatting */
-}
+.content h3 { margin-bottom: 1rem; }
+.statement-text { white-space: pre-wrap; }
 
 .example-box {
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.io-block {
-  margin-bottom: 1rem;
-}
-
-.io-block:last-child {
-  margin-bottom: 0;
-}
-
+.io-block { margin-bottom: 1rem; }
+.io-block:last-child { margin-bottom: 0; }
 .io-block pre {
   margin-top: 0.5rem;
   color: #a5b4fc;
   font-family: monospace;
 }
 
-/* Right pane */
-.right-pane {
-  gap: 1rem;
-}
+.right-pane { gap: 1rem; }
 
 .editor-header {
   display: flex;
@@ -263,7 +264,7 @@ onMounted(() => {
 }
 
 .lang-select {
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   color: #fff;
   border: 1px solid var(--glass-border);
   padding: 0.5rem 1rem;
@@ -280,6 +281,14 @@ onMounted(() => {
   white-space: pre;
 }
 
+.error-msg {
+  color: #ff5f56;
+  font-size: 0.9rem;
+  background: rgba(255, 95, 86, 0.1);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+}
+
 .result-box {
   padding: 1.5rem;
   display: flex;
@@ -293,9 +302,12 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.status-badge.accepted { background: rgba(39, 201, 63, 0.2); color: #27c93f; }
-.status-badge.wrong_answer { background: rgba(255, 95, 86, 0.2); color: #ff5f56; }
-.status-badge.queued, .status-badge.running { background: rgba(255, 189, 46, 0.2); color: #ffbd2e; }
+.status-badge.accepted     { background: rgba(39, 201, 63, 0.2);  color: #27c93f; }
+.status-badge.wrong_answer { background: rgba(255, 95, 86, 0.2);  color: #ff5f56; }
+.status-badge.error        { background: rgba(255, 95, 86, 0.2);  color: #ff5f56; }
+.status-badge.time_limit   { background: rgba(255, 95, 86, 0.2);  color: #ff5f56; }
+.status-badge.queued,
+.status-badge.running      { background: rgba(255, 189, 46, 0.2); color: #ffbd2e; }
 
 .loading-state {
   display: flex;

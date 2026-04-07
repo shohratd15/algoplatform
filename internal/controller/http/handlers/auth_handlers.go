@@ -1,4 +1,4 @@
-// internal/controller/http/handlers/user.go
+// internal/controller/http/handlers/auth_handlers.go
 package handlers
 
 import (
@@ -29,14 +29,13 @@ func NewUserHandler(uc usecase.UserUsecase, tokens domain.TokenService, v domain
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username" validate:"required,min=3,max=50"`
-		Email    string `json:"email" validate:"required,email"`
+		Email    string `json:"email"    validate:"required,email"`
 		Password string `json:"password" validate:"required,min=8"`
-		Role     string `json:"role"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Errorf(errors.ErrInvalidRequestBody, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -46,11 +45,9 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.uc.Register(r.Context(), req.Username, req.Email, req.Password, req.Role)
-	if err != nil {
+	if err := h.uc.Register(r.Context(), req.Username, req.Email, req.Password); err != nil {
 		h.log.Errorf(errors.ErrUserRegister, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-
+		http.Error(w, "failed to register user", http.StatusInternalServerError)
 		return
 	}
 
@@ -59,13 +56,13 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Email    string `json:"email" validate:"required,email"`
+		Email    string `json:"email"    validate:"required,email"`
 		Password string `json:"password" validate:"required"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Errorf(errors.ErrInvalidRequestBody, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -78,20 +75,16 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.uc.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.log.Errorf(errors.ErrUserLogin, err)
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
 	token, err := h.tokens.Generate(user.ID, user.Email, user.Role)
 	if err != nil {
 		h.log.Errorf(errors.ErrGenerateToken)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(map[string]string{"token": token}); err != nil {
-		h.log.Errorf(errors.ErrEncodeJson, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	writeJSON(w, http.StatusOK, map[string]string{"token": token})
 }

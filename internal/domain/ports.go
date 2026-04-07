@@ -1,6 +1,6 @@
 package domain
 
-// JWT-сервис (генерация и парсинг)
+// TokenService — генерация и парсинг JWT
 type TokenService interface {
 	Generate(userID int64, email, role string) (string, error)
 	Parse(token string) (Claims, error)
@@ -12,7 +12,7 @@ type Claims struct {
 	Role   string
 }
 
-// Валидация входных DTO (обертка над go-playground/validator)
+// Validator — обёртка над go-playground/validator
 type Validator interface {
 	Struct(v any) error
 }

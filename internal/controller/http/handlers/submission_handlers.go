@@ -1,4 +1,4 @@
-// internal/controller/http/handlers/submission.go
+// internal/controller/http/handlers/submission_handlers.go
 package handlers
 
 import (
@@ -26,10 +26,10 @@ func NewSubmissionHandler(u usecase.SubmissionUsecase, v domain.Validator, logge
 	}
 }
 
-// POST /submissions
+// POST /api/submissions
 func (h *SubmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ProblemID  int64  `json:"problem_id" validate:"required,min=1"`
+		ProblemID  int64  `json:"problem_id"  validate:"required,min=1"`
 		LanguageID int    `json:"language_id" validate:"required,min=1"`
 		SourceCode string `json:"source_code" validate:"required"`
 	}
@@ -45,8 +45,14 @@ func (h *SubmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := r.Context().Value(domain.ClaimsKey).(domain.Claims)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	sub := &domain.Submission{
-		UserID:     r.Context().Value(domain.ClaimsKey).(domain.Claims).UserID,
+		UserID:     claims.UserID,
 		ProblemID:  req.ProblemID,
 		LanguageID: req.LanguageID,
 		SourceCode: req.SourceCode,
@@ -57,18 +63,13 @@ func (h *SubmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Errorf(errors.ErrSubmissionCreate, err)
 		http.Error(w, errors.ErrSubmissionCreate, http.StatusInternalServerError)
-
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(map[string]any{"id": id}); err != nil {
-		h.log.Errorf(errors.ErrEncodeJson, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	writeJSON(w, http.StatusCreated, map[string]any{"id": id})
 }
 
-// GET /submissions?id=123
+// GET /api/submissions?id=123
 func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
@@ -87,6 +88,16 @@ func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Errorf(errors.ErrSubmissionNotFound, err)
 		http.Error(w, errors.ErrSubmissionNotFound, http.StatusNotFound)
+		return
+	}
+
+	claims, ok := r.Context().Value(domain.ClaimsKey).(domain.Claims)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if claims.Role != "admin" && sub.UserID != claims.UserID {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -110,8 +121,5 @@ func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  sub.UpdatedAt,
 	}
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.log.Errorf(errors.ErrEncodeJson, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	writeJSON(w, http.StatusOK, resp)
 }

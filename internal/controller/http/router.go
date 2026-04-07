@@ -14,59 +14,50 @@ func NewRouter(
 	problemHandler *handlers.ProblemHandler,
 	submissionHandler *handlers.SubmissionHandler,
 	tokenService domain.TokenService,
-) *http.ServeMux {
-	router := http.NewServeMux()
-
+) http.Handler {
 	auth := &AuthMiddleware{Tokens: tokenService}
 
-	router.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
+	// ── Ping (публичный, без /api префикса) ──────────────────────────────────
+	publicRouter := http.NewServeMux()
+	publicRouter.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := fmt.Fprint(w, "Service is running! DB connection successful."); err != nil {
 			logger.Errorf("ping error: %v", err)
 		}
 	})
 
-	// Auth (Public)
-	router.HandleFunc("POST /register", userHandler.Register)
-	router.HandleFunc("POST /login", userHandler.Login)
+	// ── Защищённые роуты для обычных пользователей ───────────────────────────
+	userRouter := http.NewServeMux()
+	userRouter.HandleFunc("GET /problems", problemHandler.List)
+	userRouter.HandleFunc("GET /problems/detail", problemHandler.GetById)
+	userRouter.HandleFunc("POST /submissions", submissionHandler.Create)
+	userRouter.HandleFunc("GET /submissions", submissionHandler.Get)
 
-	protectedUserRouter := http.NewServeMux()
-
-	// Problems
-	protectedUserRouter.HandleFunc("GET /problems", problemHandler.List)
-	protectedUserRouter.HandleFunc("GET /problems/detail", problemHandler.GetById)
-
-	// Submissions
-	protectedUserRouter.HandleFunc("POST /submissions", submissionHandler.Create)
-	protectedUserRouter.HandleFunc("GET /submissions", submissionHandler.Get)
-
-	protectedUserMiddleware := Logging(
-		auth.JWT(RequireUser(protectedUserRouter)),
-		logger,
-	)
-
+	// ── Защищённые роуты для администраторов ─────────────────────────────────
 	adminRouter := http.NewServeMux()
-
-	// Problems
 	adminRouter.HandleFunc("POST /problems", problemHandler.Create)
+	adminRouter.HandleFunc("PUT /problems", problemHandler.Update)
 	adminRouter.HandleFunc("DELETE /problems", problemHandler.Delete)
 
-	protectedAdminMiddleware := Logging(
-		auth.JWT(RequireAdmin(adminRouter)),
-		logger,
-	)
-
+	// ── Главный роутер ────────────────────────────────────────────────────────
 	mainRouter := http.NewServeMux()
 
-	mainRouter.Handle("/", Logging(router, logger))
+	// Ping — без авторизации
+	mainRouter.Handle("/", Logging(publicRouter, logger))
 
-	// Public auth routes — доступны без JWT, но через /api/ префикс (фронт вызывает /api/login, /api/register)
+	// для auth — /api/register и /api/login.
 	mainRouter.HandleFunc("POST /api/register", userHandler.Register)
 	mainRouter.HandleFunc("POST /api/login", userHandler.Login)
 
-	mainRouter.Handle("/api/", http.StripPrefix("/api", protectedUserMiddleware))
+	// Защищённые пользовательские роуты: /api/*
+	mainRouter.Handle("/api/", http.StripPrefix("/api",
+		Logging(auth.JWT(RequireUser(userRouter)), logger),
+	))
 
-	mainRouter.Handle("/api/admin/", http.StripPrefix("/api/admin", protectedAdminMiddleware))
+	// Защищённые admin роуты: /api/admin/*
+	mainRouter.Handle("/api/admin/", http.StripPrefix("/api/admin",
+		Logging(auth.JWT(RequireAdmin(adminRouter)), logger),
+	))
 
-	return mainRouter
+	return CORS(mainRouter)
 }

@@ -10,6 +10,7 @@ import (
 
 type ProblemRepository interface {
 	CreateProblem(ctx context.Context, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error
+	UpdateProblem(ctx context.Context, id int64, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error
 	GetAllProblems(ctx context.Context) ([]domain.Problem, error)
 	GetProblemById(ctx context.Context, id int64) (*domain.Problem, []domain.ProblemStatement, []domain.ProblemTest, error)
 	DeleteProblem(ctx context.Context, id int64) error
@@ -20,6 +21,14 @@ type ProblemRepo struct {
 }
 
 func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error {
+	return r.upsertProblem(ctx, 0, p, stmts, tests, false)
+}
+
+func (r *ProblemRepo) UpdateProblem(ctx context.Context, id int64, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest) error {
+	return r.upsertProblem(ctx, id, p, stmts, tests, true)
+}
+
+func (r *ProblemRepo) upsertProblem(ctx context.Context, id int64, p *domain.Problem, stmts []domain.ProblemStatement, tests []domain.ProblemTest, isUpdate bool) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
@@ -31,19 +40,40 @@ func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmt
 		}
 	}()
 
-	var id int64
-	err = tx.QueryRow(ctx, `
-		INSERT INTO problems (slug, difficulty) VALUES ($1, $2) RETURNING id
-		`, p.Slug, p.Difficulty).Scan(&id)
-	if err != nil {
-		return err
+	problemID := id
+	if isUpdate {
+		tag, execErr := tx.Exec(ctx, `
+			UPDATE problems
+			SET slug = $1, difficulty = $2
+			WHERE id = $3
+		`, p.Slug, p.Difficulty, id)
+		if execErr != nil {
+			return execErr
+		}
+		if tag.RowsAffected() == 0 {
+			return tx.Commit(ctx)
+		}
+
+		if _, execErr = tx.Exec(ctx, `DELETE FROM problem_statements WHERE problem_id = $1`, id); execErr != nil {
+			return execErr
+		}
+		if _, execErr = tx.Exec(ctx, `DELETE FROM problem_tests WHERE problem_id = $1`, id); execErr != nil {
+			return execErr
+		}
+	} else {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO problems (slug, difficulty) VALUES ($1, $2) RETURNING id
+			`, p.Slug, p.Difficulty).Scan(&problemID)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, s := range stmts {
 		_, err = tx.Exec(ctx, `
 				INSERT INTO problem_statements (problem_id, language, title, statement)
 				VALUES($1, $2, $3, $4)`,
-			id, s.Language, s.Title, s.Statement)
+			problemID, s.Language, s.Title, s.Statement)
 		if err != nil {
 			return err
 		}
@@ -53,7 +83,7 @@ func (r *ProblemRepo) CreateProblem(ctx context.Context, p *domain.Problem, stmt
 		_, err = tx.Exec(ctx, `
 			INSERT INTO problem_tests (problem_id, input_data, expected_output, is_sample)
 			VALUES($1, $2, $3, $4)`,
-			id, t.InputData, t.ExpectedOutput, t.IsSample)
+			problemID, t.InputData, t.ExpectedOutput, t.IsSample)
 		if err != nil {
 			return err
 		}

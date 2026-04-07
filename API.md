@@ -32,8 +32,7 @@ http://localhost:8080
 {
   "username": "string",
   "email": "string",
-  "password": "string",
-  "role": "string"
+  "password": "string"
 }
 ```
 
@@ -129,7 +128,7 @@ http://localhost:8080
 
 | Endpoint        | Method | Auth | Description            |
 | --------------- | ------ | ---- | ---------------------- |
-| `api/problems` | GET    | Yes  | Получение списка задач |
+| `/api/problems` | GET    | Yes  | Получение списка задач |
 
 **Response (200 OK):**
 
@@ -254,14 +253,15 @@ http://localhost:8080
 
 ## 6️⃣ Summary Table of Endpoints
 
-| Endpoint           | Method | Auth  | Description          |
-| ------------------ | ------ | ----- | -------------------- |
+| Endpoint              | Method | Auth  | Description          |
+| --------------------- | ------ | ----- | -------------------- |
 | `/ping`            | GET    | No    | Health check         |
-| `/register`        | POST   | No    | Register user        |
-| `/login`           | POST   | No    | Login user           |
-| `/problems`        | POST   | Admin | Create problem       |
-| `/problems`        | GET    | Yes   | List problems        |
-| `/problems/detail` | GET    | Yes   | Get problem details  |
-| `/problems`        | DELETE | Admin | Delete problem       |
-| `/submissions`     | POST   | Yes   | Create submission    |
-| `/submissions`     | GET    | Yes   | Get submission by id |
+| `/api/register`       | POST   | No    | Register user        |
+| `/api/login`          | POST   | No    | Login user           |
+| `/api/admin/problems` | POST   | Admin | Create problem       |
+| `/api/admin/problems` | PUT    | Admin | Update problem       |
+| `/api/problems`       | GET    | Yes   | List problems        |
+| `/api/problems/detail`| GET    | Yes   | Get problem details  |
+| `/api/admin/problems` | DELETE | Admin | Delete problem       |
+| `/api/submissions`    | POST   | Yes   | Create submission    |
+| `/api/submissions`    | GET    | Yes   | Get submission by id |

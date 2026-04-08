@@ -3,7 +3,8 @@
     <nav class="navbar">
       <div class="nav-container">
         <router-link to="/" class="logo">
-          <span class="logo-icon">▲</span>
+          <!-- AlgoPlatform logo mark -->
+          <img src="./assets/logo.webp" alt="AlgoPlatform Logo" width="50" height="50" class="img-logo" />
           <span class="logo-text">AlgoPlatform</span>
         </router-link>
 
@@ -35,7 +36,7 @@
     </main>
 
     <footer class="footer">
-      <p>&copy; 2026 AlgoPlatform — Learn Algorithms efficiently.</p>
+      <p>{{ ui.t('footerText') }}</p>
     </footer>
   </div>
 </template>
@@ -66,9 +67,9 @@ const onLocaleChange = (e) => {
   left: 0;
   right: 0;
   height: 70px;
-  background: rgba(15, 17, 21, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--glass-border);
   z-index: 100;
   display: flex;
@@ -88,46 +89,53 @@ const onLocaleChange = (e) => {
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.logo-icon {
-  color: var(--accent);
-  font-size: 1.5rem;
+  gap: 0.65rem;
+  text-decoration: none;
 }
 
 .logo-text {
   font-weight: 800;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
-  color: #fff;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+  background: linear-gradient(90deg, #fff, #93c5fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.75rem;
 }
 
 .nav-link {
   color: var(--text-muted);
   font-weight: 500;
   font-size: 0.95rem;
+  transition: color 0.2s;
 }
 
-.nav-link:hover { color: #fff; }
+.nav-link:hover { color: #fff; text-shadow: none; }
 
 .btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.45rem 1rem;
+  font-size: 0.88rem;
 }
 
 .lang-select {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.3);
   color: #fff;
   border: 1px solid var(--glass-border);
   border-radius: 6px;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.lang-select:hover {
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .main-content {
@@ -141,23 +149,15 @@ const onLocaleChange = (e) => {
   text-align: center;
   padding: 2rem;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   border-top: 1px solid var(--glass-border);
   margin-top: auto;
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
-
-.fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
+.fade-enter-from { opacity: 0; transform: translateY(8px); }
+.fade-leave-to   { opacity: 0; transform: translateY(-8px); }
 </style>

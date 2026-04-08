@@ -21,39 +21,39 @@
       <section class="glass-panel panel">
         <h2>{{ ui.t('createSection') }}</h2>
         <form @submit.prevent="createProblem" class="form">
-          <input v-model="createForm.slug" placeholder="slug (e.g. two-sum)" required />
+          <input v-model="createForm.slug" :placeholder="ui.t('adminSlugPlaceholder')" required />
           <select v-model="createForm.difficulty" required>
             <option value="easy">easy</option>
             <option value="medium">medium</option>
             <option value="hard">hard</option>
           </select>
 
-          <h3>Statements</h3>
+          <h3>{{ ui.t('adminStatements') }}</h3>
           <div v-for="(statement, idx) in createForm.statements" :key="idx" class="row-card">
             <select v-model="statement.language" required>
               <option value="en">EN</option>
               <option value="ru">RU</option>
               <option value="tm">TM</option>
             </select>
-            <input v-model="statement.title" placeholder="title" required />
-            <textarea v-model="statement.statement" rows="4" placeholder="problem statement" required />
-            <button class="btn btn-outline btn-sm" type="button" @click="removeStatement(createForm, idx)">Remove</button>
+            <input v-model="statement.title" :placeholder="ui.t('adminTitlePlaceholder')" required />
+            <textarea v-model="statement.statement" rows="4" :placeholder="ui.t('adminStatementPlaceholder')" required />
+            <button class="btn btn-outline btn-sm" type="button" @click="removeStatement(createForm, idx)">{{ ui.t('adminRemove') }}</button>
           </div>
-          <button class="btn btn-outline" type="button" @click="addStatement(createForm)">+ Add statement</button>
+          <button class="btn btn-outline" type="button" @click="addStatement(createForm)">{{ ui.t('adminAddStatement') }}</button>
 
-          <h3>Tests</h3>
+          <h3>{{ ui.t('adminTests') }}</h3>
           <div v-for="(test, idx) in createForm.tests" :key="idx" class="row-card">
-            <textarea v-model="test.input_data" rows="2" placeholder="input" required />
-            <textarea v-model="test.expected_output" rows="2" placeholder="expected output" required />
+            <textarea v-model="test.input_data" rows="2" :placeholder="ui.t('adminInput')" required />
+            <textarea v-model="test.expected_output" rows="2" :placeholder="ui.t('adminExpected')" required />
             <label class="checkbox-line">
               <input type="checkbox" v-model="test.is_sample" />
-              Sample test
+              {{ ui.t('detailSampleTest') }}
             </label>
-            <button class="btn btn-outline btn-sm" type="button" @click="removeTest(createForm, idx)">Remove</button>
+            <button class="btn btn-outline btn-sm" type="button" @click="removeTest(createForm, idx)">{{ ui.t('adminRemove') }}</button>
           </div>
-          <button class="btn btn-outline" type="button" @click="addTest(createForm)">+ Add test</button>
+          <button class="btn btn-outline" type="button" @click="addTest(createForm)">{{ ui.t('adminAddTest') }}</button>
 
-          <button class="btn btn-primary" :disabled="loading">{{ loading ? 'Saving...' : 'Create' }}</button>
+          <button class="btn btn-primary" :disabled="loading">{{ loading ? ui.t('adminSaving') : ui.t('adminCreate') }}</button>
         </form>
       </section>
     </div>
@@ -62,62 +62,62 @@
       <section class="glass-panel panel">
         <h2>{{ ui.t('manageSection') }}</h2>
         <form @submit.prevent="updateProblem" class="form">
-          <input v-model.number="updateForm.id" type="number" min="1" placeholder="problem id" required />
+          <input v-model.number="updateForm.id" type="number" min="1" :placeholder="ui.t('adminProblemIdPlaceholder')" required />
           <button class="btn btn-outline btn-sm" type="button" @click="loadProblemToUpdate" :disabled="loading">
             Load by ID
           </button>
-          <input v-model="updateForm.slug" placeholder="new slug" required />
+          <input v-model="updateForm.slug" :placeholder="ui.t('adminNewSlugPlaceholder')" required />
           <select v-model="updateForm.difficulty" required>
             <option value="easy">easy</option>
             <option value="medium">medium</option>
             <option value="hard">hard</option>
           </select>
 
-          <h3>Statements</h3>
+          <h3>{{ ui.t('adminStatements') }}</h3>
           <div v-for="(statement, idx) in updateForm.statements" :key="idx" class="row-card">
             <select v-model="statement.language" required>
               <option value="en">EN</option>
               <option value="ru">RU</option>
               <option value="tm">TM</option>
             </select>
-            <input v-model="statement.title" placeholder="title" required />
-            <textarea v-model="statement.statement" rows="4" placeholder="problem statement" required />
-            <button class="btn btn-outline btn-sm" type="button" @click="removeStatement(updateForm, idx)">Remove</button>
+            <input v-model="statement.title" :placeholder="ui.t('adminTitlePlaceholder')" required />
+            <textarea v-model="statement.statement" rows="4" :placeholder="ui.t('adminStatementPlaceholder')" required />
+            <button class="btn btn-outline btn-sm" type="button" @click="removeStatement(updateForm, idx)">{{ ui.t('adminRemove') }}</button>
           </div>
-          <button class="btn btn-outline" type="button" @click="addStatement(updateForm)">+ Add statement</button>
+          <button class="btn btn-outline" type="button" @click="addStatement(updateForm)">{{ ui.t('adminAddStatement') }}</button>
 
-          <h3>Tests</h3>
+          <h3>{{ ui.t('adminTests') }}</h3>
           <div v-for="(test, idx) in updateForm.tests" :key="idx" class="row-card">
-            <textarea v-model="test.input_data" rows="2" placeholder="input" required />
-            <textarea v-model="test.expected_output" rows="2" placeholder="expected output" required />
+            <textarea v-model="test.input_data" rows="2" :placeholder="ui.t('adminInput')" required />
+            <textarea v-model="test.expected_output" rows="2" :placeholder="ui.t('adminExpected')" required />
             <label class="checkbox-line">
               <input type="checkbox" v-model="test.is_sample" />
-              Sample test
+              {{ ui.t('detailSampleTest') }}
             </label>
-            <button class="btn btn-outline btn-sm" type="button" @click="removeTest(updateForm, idx)">Remove</button>
+            <button class="btn btn-outline btn-sm" type="button" @click="removeTest(updateForm, idx)">{{ ui.t('adminRemove') }}</button>
           </div>
-          <button class="btn btn-outline" type="button" @click="addTest(updateForm)">+ Add test</button>
+          <button class="btn btn-outline" type="button" @click="addTest(updateForm)">{{ ui.t('adminAddTest') }}</button>
 
-          <button class="btn btn-primary" :disabled="loading">{{ loading ? 'Updating...' : 'Update' }}</button>
+          <button class="btn btn-primary" :disabled="loading">{{ loading ? ui.t('adminUpdating') : ui.t('adminUpdate') }}</button>
         </form>
       </section>
     </div>
 
     <section class="glass-panel panel" v-if="mode === 'manage'">
-      <h2>Delete Problem</h2>
+      <h2>{{ ui.t('adminDeleteProblem') }}</h2>
       <form @submit.prevent="deleteProblem" class="inline-form">
-        <input v-model.number="deleteId" type="number" min="1" placeholder="problem id" required />
-        <button class="btn btn-outline" :disabled="loading">{{ loading ? 'Deleting...' : 'Delete' }}</button>
+        <input v-model.number="deleteId" type="number" min="1" :placeholder="ui.t('adminProblemIdPlaceholder')" required />
+        <button class="btn btn-outline" :disabled="loading">{{ loading ? ui.t('adminDeleting') : ui.t('adminDelete') }}</button>
       </form>
     </section>
 
     <section class="glass-panel panel">
       <div class="list-head">
-        <h2>Existing Problems</h2>
-        <button class="btn btn-outline" @click="fetchProblems" :disabled="loading">Refresh</button>
+        <h2>{{ ui.t('adminExisting') }}</h2>
+        <button class="btn btn-outline" @click="fetchProblems" :disabled="loading">{{ ui.t('adminRefresh') }}</button>
       </div>
-      <div v-if="listLoading">Loading...</div>
-      <div v-else-if="problems.length === 0">No problems yet.</div>
+      <div v-if="listLoading">{{ ui.t('adminLoading') }}</div>
+      <div v-else-if="problems.length === 0">{{ ui.t('adminNoProblems') }}</div>
       <ul v-else class="problems">
         <li v-for="p in problems" :key="p.id">
           <strong>#{{ p.id }}</strong> - {{ p.slug }} ({{ p.difficulty }})
@@ -375,8 +375,8 @@ textarea {
 }
 
 .mode-switch .active {
-  border-color: rgba(0, 255, 136, 0.4);
-  background: rgba(0, 255, 136, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .checkbox-line {

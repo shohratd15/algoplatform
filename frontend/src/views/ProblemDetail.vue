@@ -3,7 +3,7 @@
     <div class="split-pane">
       <!-- Left: Statement -->
       <div class="pane left-pane glass-panel">
-        <router-link to="/problems" class="back-link">← Back to problems</router-link>
+        <router-link to="/problems" class="back-link">{{ ui.t('detailBack') }}</router-link>
 
         <div class="problem-header">
           <h2>{{ problem.problem.slug.replace(/-/g, ' ') }}</h2>
@@ -29,14 +29,14 @@
         </div>
 
         <div class="examples" v-if="sampleTests.length > 0">
-          <h3>Examples</h3>
+          <h3>{{ ui.t('detailExamples') }}</h3>
           <div v-for="(t, i) in sampleTests" :key="i" class="example-box">
             <div class="io-block">
-              <strong>Input:</strong>
+              <strong>{{ ui.t('detailInput') }}</strong>
               <pre>{{ t.input_data }}</pre>
             </div>
             <div class="io-block">
-              <strong>Expected Output:</strong>
+              <strong>{{ ui.t('detailOutput') }}</strong>
               <pre>{{ t.expected_output }}</pre>
             </div>
           </div>
@@ -54,7 +54,7 @@
             <option :value="93">JavaScript (Node.js)</option>
           </select>
           <button class="btn btn-primary" @click="submitCode" :disabled="submitting">
-            {{ submitting ? 'Submitting...' : 'Run Code' }}
+            {{ submitting ? ui.t('detailSubmitting') : ui.t('detailRunCode') }}
           </button>
         </div>
 
@@ -67,7 +67,7 @@
             class="code-editor"
             v-model="sourceCode"
             spellcheck="false"
-            placeholder="Write your code here..."
+            :placeholder="ui.t('detailWriteCode')"
             @keydown.tab.prevent="handleTab"
             @scroll="syncScroll"
           ></textarea>
@@ -77,7 +77,7 @@
         <div class="error-msg" v-if="submitError">{{ submitError }}</div>
 
         <div class="result-box glass-panel" v-if="submissionResult">
-          <h3>Submission Result</h3>
+          <h3>{{ ui.t('detailResult') }}</h3>
           <div class="status-badge" :class="submissionResult.status">
             {{ submissionResult.status.replace(/_/g, ' ').toUpperCase() }}
           </div>
@@ -93,16 +93,18 @@
     </div>
   </div>
   <div v-else class="loading-state">
-    Loading challenge...
+    {{ ui.t('detailLoading') }}
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useUIStore } from '../stores/ui'
 import { useRoute, useRouter } from 'vue-router'
 import client from '../api/client'
 
 const route = useRoute()
+const ui = useUIStore()
 const router = useRouter()
 
 const loading = ref(true)
@@ -324,8 +326,8 @@ onUnmounted(() => {
 
 .lang-btn.active {
   color: #fff;
-  border-color: rgba(0, 255, 136, 0.4);
-  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .example-box {

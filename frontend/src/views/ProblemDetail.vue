@@ -51,7 +51,7 @@
             <option :value="60">Go (1.13.5)</option>
             <option :value="54">C++ (GCC 9.2.0)</option>
             <option :value="62">Java (OpenJDK 13.0.1)</option>
-            <option :value="93">JavaScript (Node.js)</option>
+            <option :value="63">JavaScript (Node.js)</option>
           </select>
           <button class="btn btn-primary" @click="submitCode" :disabled="submitting">
             {{ submitting ? ui.t('detailSubmitting') : ui.t('detailRunCode') }}
@@ -88,6 +88,29 @@
           >
             Refresh Status
           </button>
+
+          <div class="result-details" v-if="submissionResult.message || submissionResult.compile_output || submissionResult.stderr || submissionResult.stdout || submissionResult.expected_output">
+            <div v-if="submissionResult.message">
+              <strong>Message:</strong>
+              <pre>{{ submissionResult.message }}</pre>
+            </div>
+            <div v-if="submissionResult.stdout">
+              <strong>{{ ui.t('detailYourOutput') }}:</strong>
+              <pre>{{ submissionResult.stdout }}</pre>
+            </div>
+            <div v-if="submissionResult.expected_output">
+              <strong>{{ ui.t('detailOutput') }}:</strong>
+              <pre>{{ submissionResult.expected_output }}</pre>
+            </div>
+            <div v-if="submissionResult.compile_output">
+              <strong>Compile output:</strong>
+              <pre>{{ submissionResult.compile_output }}</pre>
+            </div>
+            <div v-if="submissionResult.stderr">
+              <strong>Runtime stderr:</strong>
+              <pre>{{ submissionResult.stderr }}</pre>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -109,12 +132,12 @@ const router = useRouter()
 
 const loading = ref(true)
 const problem = ref(null)
-const languageId = ref(71)
+const languageId = ref(60)
 const sourceCode = ref('')
 const submitting = ref(false)
 const submissionResult = ref(null)
 const submitError = ref('')
-const selectedStatementLanguage = ref('eng')
+const selectedStatementLanguage = ref('')
 const editorRef = ref(null)
 const lineNumbersRef = ref(null)
 
@@ -144,7 +167,9 @@ const fetchProblem = async () => {
     const res = await client.get(`/problems/detail?id=${route.params.id}`)
     problem.value = res.data
     const langs = [...new Set((res.data?.statements || []).map((s) => normalizeLang(s.language)).filter(Boolean))]
-    if (langs.length) selectedStatementLanguage.value = langs[0]
+    if (langs.length && !langs.includes(selectedStatementLanguage.value)) {
+      selectedStatementLanguage.value = langs[0]
+    }
   } catch (err) {
     // 401 обрабатывает interceptor; остальное — редирект на список
     if (err.response?.status !== 401) {

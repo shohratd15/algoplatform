@@ -1,5 +1,5 @@
 # Этап сборки
-FROM golang:1.24.5-alpine AS builder
+FROM golang:1.24.5 AS builder
 
 WORKDIR /app
 
@@ -14,10 +14,21 @@ COPY . .
 RUN go build -o algoplatform ./cmd/
 
 # Этап запуска
-FROM alpine:3.18
+FROM ubuntu:22.04
 
-# Добавляем netcat для проверки доступности порта
-RUN apk add --no-cache ca-certificates tzdata netcat-openbsd
+# Устанавливаем необходимые пакеты без интерактивных вопросов
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    tzdata \
+    netcat \
+    python3 \
+    golang-go \
+    nodejs \
+    npm \
+    g++ \
+    openjdk-11-jdk \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/
 
@@ -37,4 +48,3 @@ EXPOSE ${SERVER_PORT}
 
 # Запуск приложения через скрипт ожидания
 CMD ["./docker-entrypoint.sh"]
-

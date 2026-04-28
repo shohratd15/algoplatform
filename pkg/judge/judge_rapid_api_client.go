@@ -1,38 +1,36 @@
 package judge
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"net/http"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 )
 
-// Константы Judge0 для более читаемого кода
+// Константы для статусов (оставим для совместимости)
 const (
-	StatusInQueue     = 1
-	StatusProcessing  = 2
-	StatusAccepted    = 3
-	StatusWrongAnswer = 4
-	// Другие статусы, которые стоит обработать:
-	// StatusTimeLimitExceeded = 5
-	// StatusCompileError = 6
-	// StatusInternalError = 13 (используется как пример)
+	StatusInQueue       = 1
+	StatusProcessing    = 2
+	StatusAccepted      = 3
+	StatusWrongAnswer   = 4
+	StatusTimeLimit     = 5
+	StatusCompileError  = 6
+	StatusInternalError = 13
 )
 
 type Client struct {
-	Host   string
-	APIKey string
-	Client *http.Client
+	results sync.Map // map[string]*ResultResponse
 }
 
 func NewClient(host, apikey string) *Client {
-	return &Client{
-		Host:   host,
-		APIKey: apikey,
-		Client: &http.Client{Timeout: 10 * time.Second},
-	}
+	return &Client{}
 }
 
 type SubmissionRequest struct {
@@ -51,8 +49,9 @@ type ResultResponse struct {
 		ID   int    `json:"id"`
 		Name string `json:"description"`
 	} `json:"status"`
-	CompileOutput string `json:"compile_output"`
 	Stdout        string `json:"stdout"`
+	ExpectedOutput string `json:"expected_output"`
+	CompileOutput string `json:"compile_output"`
 	Stderr        string `json:"stderr"`
 	Time          string `json:"time"`
 	Memory        int    `json:"memory"`
@@ -60,66 +59,166 @@ type ResultResponse struct {
 }
 
 func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-
-	url := fmt.Sprintf("https://%s/submissions?base64_encoded=false&wait=false", c.Host)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create http request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Add("x-rapidapi-key", c.APIKey)
-	httpReq.Header.Add("x-rapidapi-host", c.Host)
-
-	resp, err := c.Client.Do(httpReq)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close() // nolint: errcheck
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("judge0 submit returned non-20x status: %d", resp.StatusCode)
-	}
-
-	var result SubmissionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode submission response: %w", err)
-	}
-
-	return result.Token, nil
+	token := generateToken()
+	result := c.executeCode(req)
+	c.results.Store(token, result)
+	return token, nil
 }
 
 func (c *Client) GetResult(ctx context.Context, token string) (*ResultResponse, error) {
-	url := fmt.Sprintf("https://%s/submissions/%s?base64_encoded=false", c.Host, token)
+	if val, ok := c.results.Load(token); ok {
+		return val.(*ResultResponse), nil
+	}
+	return nil, fmt.Errorf("result not found for token %s", token)
+}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+func generateToken() string {
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+func (c *Client) executeCode(req SubmissionRequest) *ResultResponse {
+	result := &ResultResponse{
+		Status: struct {
+			ID   int    `json:"id"`
+			Name string `json:"description"`
+		}{ID: StatusProcessing, Name: "Processing"},
+	}
+
+	result.ExpectedOutput = req.Expected
+
+	// Определяем язык
+	var lang string
+	switch req.LanguageID {
+	case 71: // Python
+		lang = "python"
+	case 60: // Go
+		lang = "go"
+	case 63: // JavaScript
+		lang = "js"
+	case 54: // C++
+		lang = "cpp"
+	case 62: // Java
+		lang = "java"
+	default:
+		result.Status.ID = StatusInternalError
+		result.Status.Name = "Unsupported language"
+		result.Message = "Unsupported language ID"
+		return result
+	}
+
+	// Создаем временную директорию
+	tmpDir, err := ioutil.TempDir("", "judge")
 	if err != nil {
-		return nil, fmt.Errorf("create http request: %w", err)
+		result.Status.ID = StatusInternalError
+		result.Status.Name = "Internal error"
+		result.Message = "Failed to create temp dir"
+		return result
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Пишем код в файл
+	codeFile := filepath.Join(tmpDir, "code")
+	switch lang {
+	case "python":
+		codeFile += ".py"
+	case "go":
+		codeFile += ".go"
+	case "js":
+		codeFile += ".js"
+	case "cpp":
+		codeFile += ".cpp"
+	case "java":
+		codeFile += ".java"
 	}
 
-	httpReq.Header.Add("x-rapidapi-key", c.APIKey)
-	httpReq.Header.Add("x-rapidapi-host", c.Host)
+	if err := ioutil.WriteFile(codeFile, []byte(req.SourceCode), 0644); err != nil {
+		result.Status.ID = StatusInternalError
+		result.Message = "Failed to write code file"
+		return result
+	}
 
-	resp, err := c.Client.Do(httpReq)
+	// Пишем input в файл
+	inputFile := filepath.Join(tmpDir, "input.txt")
+	if err := ioutil.WriteFile(inputFile, []byte(req.Stdin), 0644); err != nil {
+		result.Status.ID = StatusInternalError
+		result.Message = "Failed to write input file"
+		return result
+	}
+
+	// Компилируем если нужно
+	var execCmd string
+	var compileCmd []string
+	switch lang {
+	case "python":
+		execCmd = fmt.Sprintf("python3 %s", codeFile)
+	case "go":
+		execCmd = fmt.Sprintf("go run %s", codeFile)
+	case "js":
+		execCmd = fmt.Sprintf("node %s", codeFile)
+	case "cpp":
+		compileCmd = []string{"g++", "-o", filepath.Join(tmpDir, "program"), codeFile}
+		execCmd = filepath.Join(tmpDir, "program")
+	case "java":
+		// Для Java, код должен быть в классе, но для простоты предполагаем main
+		compileCmd = []string{"javac", codeFile}
+		execCmd = "java -cp " + tmpDir + " Main"
+	}
+
+	// Компиляция
+	if len(compileCmd) > 0 {
+		cmd := exec.Command(compileCmd[0], compileCmd[1:]...)
+		cmd.Dir = tmpDir
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			result.Status.ID = StatusCompileError
+			result.Status.Name = "Compilation error"
+			result.CompileOutput = string(output)
+			result.Message = err.Error()
+			return result
+		}
+	}
+
+	// Запуск напрямую
+	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("%s < %s", execCmd, inputFile))
+	cmd.Dir = tmpDir
+
+	start := time.Now()
+	output, err := cmd.CombinedOutput()
+	duration := time.Since(start)
+
+	result.Time = fmt.Sprintf("%.3f", duration.Seconds())
+
 	if err != nil {
-		return nil, fmt.Errorf("judge0 get result request failed: %w", err)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 137 { // SIGKILL, вероятно time limit
+				result.Status.ID = StatusTimeLimit
+				result.Status.Name = "Time limit exceeded"
+			} else {
+				result.Status.ID = StatusInternalError
+				result.Status.Name = "Runtime error"
+				result.Stderr = string(output)
+				result.Message = err.Error()
+			}
+		} else {
+			result.Status.ID = StatusInternalError
+			result.Stderr = string(output)
+			result.Message = err.Error()
+		}
+		return result
 	}
 
-	defer resp.Body.Close() // nolint: errcheck
+	result.Stdout = strings.TrimSpace(string(output))
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("judge0 get result returned non-200 status: %d", resp.StatusCode)
+	// Сравниваем с expected
+	if strings.TrimSpace(result.Stdout) == strings.TrimSpace(req.Expected) {
+		result.Status.ID = StatusAccepted
+		result.Status.Name = "Accepted"
+	} else {
+		result.Status.ID = StatusWrongAnswer
+		result.Status.Name = "Wrong answer"
 	}
 
-	var res ResultResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("decode result response: %w", err)
-	}
-
-	return &res, nil
+	return result
 }

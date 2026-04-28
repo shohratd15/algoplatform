@@ -163,7 +163,9 @@ const resetMessages = () => {
 }
 
 const addStatement = (formRef) => {
+  console.log('Adding statement to form:', formRef.value)
   formRef.value.statements.push({ language: 'en', title: '', statement: '' })
+  console.log('Statements after add:', formRef.value.statements)
 }
 
 const removeStatement = (formRef, idx) => {
@@ -172,7 +174,9 @@ const removeStatement = (formRef, idx) => {
 }
 
 const addTest = (formRef) => {
+  console.log('Adding test to form:', formRef.value)
   formRef.value.tests.push({ input_data: '', expected_output: '', is_sample: false })
+  console.log('Tests after add:', formRef.value.tests)
 }
 
 const removeTest = (formRef, idx) => {

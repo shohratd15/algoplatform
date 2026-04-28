@@ -102,23 +102,29 @@ func (h *SubmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := struct {
-		ID         int64     `json:"id"`
-		UserID     int64     `json:"user_id"`
-		ProblemID  int64     `json:"problem_id"`
-		LanguageID int       `json:"language_id"`
-		SourceCode string    `json:"source_code"`
-		Status     string    `json:"status"`
-		CreatedAt  time.Time `json:"created_at"`
-		UpdatedAt  time.Time `json:"updated_at"`
+		ID           int64     `json:"id"`
+		UserID       int64     `json:"user_id"`
+		ProblemID    int64     `json:"problem_id"`
+		LanguageID   int       `json:"language_id"`
+		SourceCode   string    `json:"source_code"`
+		Status       string    `json:"status"`
+		CompileOutput string    `json:"compile_output"`
+		Stderr       string    `json:"stderr"`
+		Message      string    `json:"message"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
 	}{
-		ID:         sub.ID,
-		UserID:     sub.UserID,
-		ProblemID:  sub.ProblemID,
-		LanguageID: sub.LanguageID,
-		SourceCode: sub.SourceCode,
-		Status:     sub.Status,
-		CreatedAt:  sub.CreatedAt,
-		UpdatedAt:  sub.UpdatedAt,
+		ID:           sub.ID,
+		UserID:       sub.UserID,
+		ProblemID:    sub.ProblemID,
+		LanguageID:   sub.LanguageID,
+		SourceCode:   sub.SourceCode,
+		Status:       sub.Status,
+		CompileOutput: sub.CompileOutput,
+		Stderr:       sub.Stderr,
+		Message:      sub.Message,
+		CreatedAt:    sub.CreatedAt,
+		UpdatedAt:    sub.UpdatedAt,
 	}
 
 	writeJSON(w, http.StatusOK, resp)

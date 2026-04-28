@@ -11,6 +11,7 @@ type SubmissionUsecase interface {
 	Get(ctx context.Context, id int64) (*domain.Submission, error)
 	ListPending(ctx context.Context, limit int) ([]domain.Submission, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
+	UpdateResult(ctx context.Context, id int64, status, stdout, expectedOutput, compileOutput, stderr, message string) error
 }
 
 type submissionUsecase struct {
@@ -35,4 +36,8 @@ func (u *submissionUsecase) ListPending(ctx context.Context, limit int) ([]domai
 
 func (u *submissionUsecase) UpdateStatus(ctx context.Context, id int64, status string) error {
 	return u.repo.UpdateStatus(ctx, id, status)
+}
+
+func (u *submissionUsecase) UpdateResult(ctx context.Context, id int64, status, stdout, expectedOutput, compileOutput, stderr, message string) error {
+	return u.repo.UpdateResult(ctx, id, status, stdout, expectedOutput, compileOutput, stderr, message)
 }

@@ -13,6 +13,7 @@ type SubmissionRepository interface {
 	GetByID(ctx context.Context, id int64) (*domain.Submission, error)
 	GetPending(ctx context.Context, limit int) ([]domain.Submission, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
+	UpdateResult(ctx context.Context, id int64, status, stdout, expectedOutput, compileOutput, stderr, message string) error
 }
 
 type SubmissionRepo struct {
@@ -40,15 +41,32 @@ func (r *SubmissionRepo) Create(ctx context.Context, s *domain.Submission) (int6
 
 func (r *SubmissionRepo) GetByID(ctx context.Context, id int64) (*domain.Submission, error) {
 	q := `
-		SELECT id, user_id, problem_id, language_id, source_code, status, created_at, updated_at
+		SELECT id, user_id, problem_id, language_id, source_code, status, stdout, expected_output, compile_output, stderr, message, created_at, updated_at
 		FROM submissions WHERE id=$1
 	`
 	var s domain.Submission
+	var stdout, expectedOutput, compileOutput, stderr, message *string
 	err := r.DB.QueryRow(ctx, q, id).Scan(
-		&s.ID, &s.UserID, &s.ProblemID, &s.LanguageID, &s.SourceCode, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&s.ID, &s.UserID, &s.ProblemID, &s.LanguageID, &s.SourceCode, &s.Status,
+		&stdout, &expectedOutput, &compileOutput, &stderr, &message, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if stdout != nil {
+		s.Stdout = *stdout
+	}
+	if expectedOutput != nil {
+		s.ExpectedOutput = *expectedOutput
+	}
+	if compileOutput != nil {
+		s.CompileOutput = *compileOutput
+	}
+	if stderr != nil {
+		s.Stderr = *stderr
+	}
+	if message != nil {
+		s.Message = *message
 	}
 
 	return &s, nil
@@ -65,7 +83,7 @@ func (r *SubmissionRepo) GetPending(ctx context.Context, limit int) ([]domain.Su
 			LIMIT $4
 			FOR UPDATE SKIP LOCKED
 		)
-		RETURNING id, user_id, problem_id, language_id, source_code, status, created_at, updated_at
+		RETURNING id, user_id, problem_id, language_id, source_code, status, stdout, expected_output, compile_output, stderr, message, created_at, updated_at
 	`
 	rows, err := r.DB.Query(ctx, q, domain.StatusRunning, time.Now(), domain.StatusQueued, limit)
 	if err != nil {
@@ -77,8 +95,27 @@ func (r *SubmissionRepo) GetPending(ctx context.Context, limit int) ([]domain.Su
 	var subs []domain.Submission
 	for rows.Next() {
 		var s domain.Submission
-		if err := rows.Scan(&s.ID, &s.UserID, &s.ProblemID, &s.LanguageID, &s.SourceCode, &s.Status, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		var stdout, expectedOutput, compileOutput, stderr, message *string
+		if err := rows.Scan(
+			&s.ID, &s.UserID, &s.ProblemID, &s.LanguageID, &s.SourceCode, &s.Status,
+			&stdout, &expectedOutput, &compileOutput, &stderr, &message, &s.CreatedAt, &s.UpdatedAt,
+		); err != nil {
 			return nil, err
+		}
+		if stdout != nil {
+			s.Stdout = *stdout
+		}
+		if expectedOutput != nil {
+			s.ExpectedOutput = *expectedOutput
+		}
+		if compileOutput != nil {
+			s.CompileOutput = *compileOutput
+		}
+		if stderr != nil {
+			s.Stderr = *stderr
+		}
+		if message != nil {
+			s.Message = *message
 		}
 		subs = append(subs, s)
 	}
@@ -89,6 +126,13 @@ func (r *SubmissionRepo) GetPending(ctx context.Context, limit int) ([]domain.Su
 func (r *SubmissionRepo) UpdateStatus(ctx context.Context, id int64, status string) error {
 	q := `UPDATE submissions SET status=$1, updated_at=$2 WHERE id=$3`
 	_, err := r.DB.Exec(ctx, q, status, time.Now(), id)
+
+	return err
+}
+
+func (r *SubmissionRepo) UpdateResult(ctx context.Context, id int64, status, stdout, expectedOutput, compileOutput, stderr, message string) error {
+	q := `UPDATE submissions SET status=$1, stdout=$2, expected_output=$3, compile_output=$4, stderr=$5, message=$6, updated_at=$7 WHERE id=$8`
+	_, err := r.DB.Exec(ctx, q, status, stdout, expectedOutput, compileOutput, stderr, message, time.Now(), id)
 
 	return err
 }

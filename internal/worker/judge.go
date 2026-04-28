@@ -91,11 +91,13 @@ func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
 	_, _, tests, err := w.probUsecase.GetById(ctx, s.ProblemID)
 	if err != nil {
 		w.log.Errorf("Submission %d: failed to get problem tests: %v", s.ID, err)
-		_ = w.subUsecase.UpdateStatus(ctx, s.ID, domain.StatusError)
+		_ = w.subUsecase.UpdateResult(ctx, s.ID, domain.StatusError, "", "", "failed to load problem tests", "", err.Error())
 		return
 	}
 
 	finalStatus := domain.StatusAccepted
+
+	var stdout, expectedOutput, compileOutput, stderr, message string
 
 	for i, t := range tests {
 		w.log.Debugf("Submission %d: Submitting test %d...", s.ID, i+1)
@@ -109,35 +111,42 @@ func (w *JudgeWorker) process(ctx context.Context, s domain.Submission) {
 		if err != nil {
 			w.log.Errorf("Submission %d, Test %d: Judge0 Submit failed: %v", s.ID, i+1, err)
 			finalStatus = domain.StatusError
+			message = err.Error()
 			break
 		}
 
-		testStatus, err := w.pollForStatus(ctx, token, 500*time.Millisecond, 120)
+		res, err := w.pollForResult(ctx, token, 500*time.Millisecond, 120)
 		if err != nil {
 			w.log.Errorf("Submission %d, Test %d: Polling failed: %v", s.ID, i+1, err)
 			finalStatus = domain.StatusError
+			message = err.Error()
 			break
 		}
 
-		if testStatus != judge.StatusAccepted {
-			w.log.Debugf("Submission %d, Test %d failed with status ID: %d", s.ID, i+1, testStatus)
-			finalStatus = w.mapJudgeStatusToDomain(testStatus)
+		if res.Status.ID != judge.StatusAccepted {
+			w.log.Debugf("Submission %d, Test %d failed with status ID: %d", s.ID, i+1, res.Status.ID)
+			finalStatus = w.mapJudgeStatusToDomain(res.Status.ID)
+			stdout = res.Stdout
+			expectedOutput = t.ExpectedOutput
+			compileOutput = res.CompileOutput
+			stderr = res.Stderr
+			message = res.Message
 			break
 		}
 	}
 
-	if err := w.subUsecase.UpdateStatus(ctx, s.ID, finalStatus); err != nil {
+	if err := w.subUsecase.UpdateResult(ctx, s.ID, finalStatus, stdout, expectedOutput, compileOutput, stderr, message); err != nil {
 		w.log.Errorf("Submission %d: failed to set final status %s: %v", s.ID, finalStatus, err)
 	}
 }
 
-func (w *JudgeWorker) pollForStatus(ctx context.Context, token string, interval time.Duration, maxChecks int) (int, error) {
-	for range maxChecks {
+func (w *JudgeWorker) pollForResult(ctx context.Context, token string, interval time.Duration, maxChecks int) (*judge.ResultResponse, error) {
+	for i := 0; i < maxChecks; i++ {
 		time.Sleep(interval)
 
 		res, err := w.client.GetResult(ctx, token)
 		if err != nil {
-			return 0, fmt.Errorf("get result failed: %w", err)
+			return nil, fmt.Errorf("get result failed: %w", err)
 		}
 
 		statusID := res.Status.ID
@@ -145,10 +154,10 @@ func (w *JudgeWorker) pollForStatus(ctx context.Context, token string, interval 
 			continue
 		}
 
-		return statusID, nil
+		return res, nil
 	}
 
-	return 0, fmt.Errorf("polling timeout reached for token %s", token)
+	return nil, fmt.Errorf("polling timeout reached for token %s", token)
 }
 
 func (w *JudgeWorker) mapJudgeStatusToDomain(judgeID int) string {

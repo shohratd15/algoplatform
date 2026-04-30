@@ -30,7 +30,7 @@ services:
     command: >
       -path=/migrations -database=postgres://${DB_USER}:${DB_PASSWORD}@algoplatform_db:5432/${DB_NAME}?sslmode=disable up
     volumes:
-      - ./migrations:/migrations
+      - ./backend/migrations:/migrations
     depends_on:
       algoplatform_db:
         condition: service_healthy
@@ -38,7 +38,7 @@ services:
       - app-network
 
   algoplatform:
-    build: .
+    build: ./backend
     container_name: algoplatform
     privileged: true
     env_file:
@@ -58,10 +58,7 @@ services:
     build: ./frontend
     container_name: algoplatform_frontend
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "80:80"
     restart: on-failure
     depends_on:
       - algoplatform
@@ -73,7 +70,6 @@ services:
 ##############################################################################
 volumes:
   algoplatform_pgdata:
-
 
 networks:
   app-network:

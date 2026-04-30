@@ -1,8 +1,26 @@
 <template>
   <div class="detail-wrapper animate-fade-up" v-if="!loading && problem">
+    <!-- Mobile tabs -->
+    <div class="mobile-tabs">
+      <button 
+        class="mobile-tab" 
+        :class="{ active: activeMobileTab === 'statement' }"
+        @click="activeMobileTab = 'statement'"
+      >
+        {{ ui.t('detailTask') || 'Задача' }}
+      </button>
+      <button 
+        class="mobile-tab" 
+        :class="{ active: activeMobileTab === 'editor' }"
+        @click="activeMobileTab = 'editor'"
+      >
+        {{ ui.t('detailEditor') || 'Редактор' }}
+      </button>
+    </div>
+
     <div class="split-pane">
       <!-- Left: Statement -->
-      <div class="pane left-pane glass-panel">
+      <div class="pane left-pane glass-panel" :class="{ 'mobile-hidden': activeMobileTab !== 'statement' }">
         <router-link to="/problems" class="back-link">{{ ui.t('detailBack') }}</router-link>
 
         <div class="problem-header">
@@ -44,7 +62,7 @@
       </div>
 
       <!-- Right: Editor -->
-      <div class="pane right-pane">
+      <div class="pane right-pane" :class="{ 'mobile-hidden': activeMobileTab !== 'editor' }">
         <div class="editor-header glass-panel">
           <select v-model="languageId" class="lang-select">
             <option :value="71">Python (3.8.1)</option>
@@ -58,19 +76,8 @@
           </button>
         </div>
 
-        <div class="editor-shell glass-panel">
-          <div class="line-numbers" ref="lineNumbersRef">
-            <div v-for="line in lineCount" :key="line">{{ line }}</div>
-          </div>
-          <textarea
-            ref="editorRef"
-            class="code-editor"
-            v-model="sourceCode"
-            spellcheck="false"
-            :placeholder="ui.t('detailWriteCode')"
-            @keydown.tab.prevent="handleTab"
-            @scroll="syncScroll"
-          ></textarea>
+        <div class="editor-shell glass-panel" style="padding: 1rem 0;">
+          <div ref="editorContainer" style="width: 100%; height: 400px;"></div>
         </div>
 
         <!-- Ошибка сабмита — в UI, не через alert() -->
@@ -121,10 +128,26 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, shallowRef, markRaw, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useUIStore } from '../stores/ui'
 import { useRoute, useRouter } from 'vue-router'
+import * as monaco from 'monaco-editor'
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
+import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
+import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import client from '../api/client'
+
+self.MonacoEnvironment = {
+  getWorker(_, label) {
+    if (label === 'json') return new jsonWorker()
+    if (label === 'css' || label === 'scss' || label === 'less') return new cssWorker()
+    if (label === 'html' || label === 'handlebars' || label === 'razor') return new htmlWorker()
+    if (label === 'typescript' || label === 'javascript') return new tsWorker()
+    return new editorWorker()
+  }
+}
 
 const route = useRoute()
 const ui = useUIStore()
@@ -138,8 +161,8 @@ const submitting = ref(false)
 const submissionResult = ref(null)
 const submitError = ref('')
 const selectedStatementLanguage = ref('')
-const editorRef = ref(null)
-const lineNumbersRef = ref(null)
+const editorInstance = shallowRef(null)
+const activeMobileTab = ref('statement')
 
 // Таймер храним в ref, чтобы очистить при unmount
 const pollTimer = ref(null)
@@ -150,7 +173,43 @@ const sampleTests = computed(() => {
   if (!problem.value?.tests) return []
   return problem.value.tests.filter((t) => t.is_sample)
 })
-const lineCount = computed(() => Math.max(1, sourceCode.value.split('\n').length))
+
+// Monaco Editor configuration
+const currentLanguage = computed(() => {
+  const langMap = {
+    71: 'python',
+    60: 'go',
+    54: 'cpp',
+    62: 'java',
+    63: 'javascript'
+  }
+  return langMap[languageId.value] || 'plaintext'
+})
+
+const editorTheme = 'vs-dark'
+
+const editorOptions = {
+  fontSize: 14,
+  fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+  minimap: { enabled: false },
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  tabSize: 2,
+  insertSpaces: true,
+  wordWrap: 'on',
+  lineNumbers: 'on',
+  glyphMargin: false,
+  folding: true,
+  lineDecorationsWidth: 10,
+  lineNumbersMinChars: 3,
+  renderLineHighlight: 'line',
+  scrollbar: {
+    verticalScrollbarSize: 10,
+    horizontalScrollbarSize: 10
+  },
+  padding: { top: 16, bottom: 16 }
+}
+
 const availableStatementLanguages = computed(() => {
   const stmts = problem.value?.statements || []
   return [...new Set(stmts.map((s) => normalizeLang(s.language)).filter(Boolean))]
@@ -177,6 +236,9 @@ const fetchProblem = async () => {
     }
   } finally {
     loading.value = false
+    nextTick(() => {
+      initEditor()
+    })
   }
 }
 
@@ -242,30 +304,65 @@ const pollResult = async () => {
   }
 }
 
-const syncScroll = () => {
-  if (!editorRef.value || !lineNumbersRef.value) return
-  lineNumbersRef.value.scrollTop = editorRef.value.scrollTop
+const editorContainer = ref(null)
+
+const handleEditorMount = () => {
+  // Editor is now initialized in onMounted
 }
 
-const handleTab = (e) => {
-  const el = e.target
-  const tab = '  '
-  const start = el.selectionStart
-  const end = el.selectionEnd
-  const current = sourceCode.value
+const initEditor = () => {
+  if (editorContainer.value && !editorInstance.value) {
+    monaco.editor.defineTheme('transparent-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#00000000',
+        'editor.marginBackground': '#00000000',
+        'editorGutter.background': '#00000000',
+        'editorLineNumber.background': '#00000000'
+      }
+    })
 
-  sourceCode.value = `${current.slice(0, start)}${tab}${current.slice(end)}`
-  requestAnimationFrame(() => {
-    el.selectionStart = el.selectionEnd = start + tab.length
-    syncScroll()
-  })
+    const editor = monaco.editor.create(editorContainer.value, {
+      value: sourceCode.value,
+      language: currentLanguage.value,
+      theme: 'transparent-dark',
+      fontSize: 14,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      lineNumbers: 'on',
+      roundedSelection: false,
+      readOnly: false,
+      cursorStyle: 'line',
+    })
+    editorInstance.value = markRaw(editor)
+    
+    editorInstance.value.onDidChangeModelContent(() => {
+      sourceCode.value = editorInstance.value.getValue()
+    })
+  }
 }
 
 onMounted(fetchProblem)
 
+watch(languageId, () => {
+  if (editorInstance.value) {
+    monaco.editor.setModelLanguage(
+      editorInstance.value.getModel(),
+      currentLanguage.value
+    )
+  }
+})
+
 // Очищаем таймер при уходе со страницы — не допускаем утечки
 onUnmounted(() => {
   if (pollTimer.value) clearTimeout(pollTimer.value)
+  if (editorInstance.value) {
+    editorInstance.value.dispose()
+  }
 })
 </script>
 
@@ -391,36 +488,9 @@ onUnmounted(() => {
 
 .editor-shell {
   flex: 1;
-  display: grid;
-  grid-template-columns: 56px 1fr;
+  display: block;
   overflow: hidden;
-}
-
-.line-numbers {
-  padding: 1rem 0.5rem;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.35);
-  border-right: 1px solid var(--glass-border);
-  color: var(--text-muted);
-  font-family: 'Fira Code', 'Courier New', monospace;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  text-align: right;
-}
-
-.code-editor {
-  width: 100%;
-  height: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: #fff;
-  resize: none;
-  font-family: 'Fira Code', 'Courier New', monospace;
-  font-size: 1rem;
-  padding: 1rem;
-  line-height: 1.6;
-  white-space: pre;
+  border-radius: 12px;
 }
 
 .error-msg {
@@ -457,5 +527,92 @@ onUnmounted(() => {
   justify-content: center;
   height: calc(100vh - 70px);
   color: var(--text-muted);
+}
+
+/* Mobile responsive styles */
+.mobile-tabs {
+  display: none;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.mobile-tab {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-tab.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .detail-wrapper {
+    padding: 1rem;
+    height: auto;
+    min-height: calc(100vh - 70px);
+    overflow-y: auto;
+  }
+
+  .split-pane {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pane.mobile-hidden {
+    display: none;
+  }
+
+  .pane {
+    width: 100%;
+  }
+
+  .left-pane {
+    max-height: none;
+    padding: 1.5rem;
+  }
+
+  .right-pane {
+    min-height: 60vh;
+  }
+
+  .editor-header {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .lang-select {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .editor-shell {
+    min-height: 300px;
+  }
+
+  .result-box {
+    margin-top: 1rem;
+  }
+
+  .problem-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .content {
+    font-size: 0.95rem;
+  }
+
+  .example-box {
+    padding: 1rem;
+  }
 }
 </style>

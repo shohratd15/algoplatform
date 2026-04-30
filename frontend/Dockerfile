@@ -1,4 +1,5 @@
-FROM node:22-alpine
+# Этап сборки
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -7,6 +8,18 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 5173
+# Собираем production билд
+RUN npm run build
 
-CMD ["npm", "run", "dev", "--", "--host"]
+# Этап запуска - nginx для статики
+FROM nginx:alpine
+
+# Копируем собранные файлы
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Копируем конфиг nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

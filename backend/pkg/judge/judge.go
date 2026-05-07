@@ -29,7 +29,7 @@ type Client struct {
 	results sync.Map // map[string]*ResultResponse
 }
 
-func NewClient(host, apikey string) *Client {
+func NewClient() *Client {
 	return &Client{}
 }
 
@@ -49,13 +49,13 @@ type ResultResponse struct {
 		ID   int    `json:"id"`
 		Name string `json:"description"`
 	} `json:"status"`
-	Stdout        string `json:"stdout"`
+	Stdout         string `json:"stdout"`
 	ExpectedOutput string `json:"expected_output"`
-	CompileOutput string `json:"compile_output"`
-	Stderr        string `json:"stderr"`
-	Time          string `json:"time"`
-	Memory        int    `json:"memory"`
-	Message       string `json:"message"`
+	CompileOutput  string `json:"compile_output"`
+	Stderr         string `json:"stderr"`
+	Time           string `json:"time"`
+	Memory         int    `json:"memory"`
+	Message        string `json:"message"`
 }
 
 func (c *Client) Submit(ctx context.Context, req SubmissionRequest) (string, error) {

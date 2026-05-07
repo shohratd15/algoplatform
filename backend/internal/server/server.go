@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	serviceName  = "algoplatform"
-	envFile      = ".env"
-	AccessTTL    = 15 * time.Minute
-	RefreshTTL   = 7 * 24 * time.Hour
+	serviceName = "algoplatform"
+	envFile     = ".env"
+	AccessTTL   = 15 * time.Minute
+	RefreshTTL  = 7 * 24 * time.Hour
 )
 
 func RunServer() {
@@ -68,7 +68,7 @@ func RunServer() {
 
 	router := httpi.NewRouter(logger, UserHandler, ProblemHandler, SubmissionHandler, tokens)
 
-	judgeClient := judge.NewClient(cfg.Judge0RapidAPIHost, cfg.Judge0RapidAPIKey)
+	judgeClient := judge.NewClient()
 	worker := worker.NewJudgeWorker(SubmissionService, ProblemService, judgeClient, logger)
 	go worker.Start(ctx)
 

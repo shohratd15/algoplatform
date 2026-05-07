@@ -9,12 +9,10 @@ import (
 )
 
 type Config struct {
-	Env                string
-	ServerPort         string
-	DatabaseURL        string
-	SecretKey          string
-	Judge0RapidAPIHost string
-	Judge0RapidAPIKey  string
+	Env         string
+	ServerPort  string
+	DatabaseURL string
+	SecretKey   string
 }
 
 // Load загружает конфигурацию из .env и переменных окружения
@@ -50,10 +48,6 @@ func Load(envFile string) (*Config, error) {
 
 	//Secret Key
 	cfg.SecretKey = getEnv("SECRET_KEY", "my_secret_key_algo")
-
-	//JUDGE0_RAPID_API
-	cfg.Judge0RapidAPIHost = getEnv("JUDGE0_RAPID_API_HOST", "judge0-ce.p.rapidapi.com")
-	cfg.Judge0RapidAPIKey = getEnv("JUDGE0_RAPID_API_KEY", "my_key")
 
 	return cfg, nil
 }
